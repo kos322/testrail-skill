@@ -1,158 +1,157 @@
 # TestRail API Skill
 
-AI agent skill for TestRail REST API integration without external dependencies.
-
-## Overview
-
-This skill provides ready-to-use curl examples for TestRail API operations. No MCP servers, no third-party packages — just direct REST API calls that work with any AI agent supporting the open agent skills protocol.
+AI agent skill for TestRail REST API — zero dependencies, security-friendly alternative to MCP servers.
 
 ## Features
 
 - ✅ **Zero dependencies** — pure curl + TestRail REST API
-- ✅ **20+ tested examples** — projects, cases, runs, results
+- ✅ **Ready-to-use scripts** — 6 common operations pre-built
 - ✅ **Production-ready** — follows TestRail API best practices
-- ✅ **Bulk operations** — efficient batch result uploads
-- ✅ **Complete workflows** — import cases → generate tests → push results
-- ✅ **Cross-platform** — works on Linux, macOS, and Windows (via Git Bash/WSL)
+- ✅ **Cross-platform** — Linux, macOS, Windows (Git Bash/WSL)
+- ✅ **Token-efficient** — modular structure, load only what you need
 
 ## Installation
-
-```bash
-npx skills add kos322/testrail-skill
-```
-
-Or for global installation:
 
 ```bash
 npx skills add kos322/testrail-skill -g -y
 ```
 
-## Prerequisites
+## Quick Start
 
-**Windows Users:** This skill uses Bash syntax. Use **Git Bash** (included with [Git for Windows](https://git-scm.com/download/win)) or **WSL**. Claude Code's Bash tool works seamlessly with Git Bash on Windows.
-
-### Configuration
-
-**Recommended:** Create a `.env` file in your project:
-
+**1. Configure credentials** (copy template, fill in values):
 ```bash
-cat > .env <<'EOF'
-TESTRAIL_URL="https://your-company.testrail.io"
-TESTRAIL_USER="your@email.com"
-TESTRAIL_API_KEY="your-api-key"
-EOF
+cp .env.example .env
+# Edit .env with your TestRail URL, email, and API key
+```
 
-# Add to .gitignore
-echo ".env" >> .gitignore
-
-# Load credentials
+**2. Load credentials:**
+```bash
 source .env
 ```
 
-**Alternative:** Set global environment variables in `~/.bashrc`:
+**3. Use scripts:**
+```bash
+# Get test cases
+./scripts/get_cases.sh 1 10
+
+# Create test run
+./scripts/create_run.sh 1 5 "Sprint 42 Regression"
+
+# Add test result
+./scripts/add_result.sh 1042 1 "Passed in CI"
+```
+
+## Structure
+
+```
+testrail-skill/
+├── SKILL.md              # Main skill file (~150 lines)
+├── scripts/              # Ready-to-use bash scripts
+│   ├── get_cases.sh      # Get test cases
+│   ├── create_run.sh     # Create test run
+│   ├── add_result.sh     # Add single result
+│   ├── bulk_results.sh   # Bulk upload results
+│   ├── import_cases.sh   # Export cases to JSON
+│   └── close_run.sh      # Close test run
+├── examples/             # Complete workflow examples
+│   ├── create_case.sh    # Create case with all fields
+│   └── workflow_ci.sh    # Full CI integration
+└── docs/                 # Detailed documentation
+    ├── api-reference.md  # All 20+ API endpoints
+    ├── troubleshooting.md # Common issues & solutions
+    └── agent-guide.md    # For AI agents
+```
+
+## Prerequisites
+
+**Windows Users:** Use **Git Bash** ([Git for Windows](https://git-scm.com/download/win)) or **WSL**.  
+Claude Code's Bash tool works seamlessly with Git Bash.
+
+**Get API Key:**
+1. TestRail → My Settings → API Keys → Add Key
+2. Enable API: Administration → Site Settings → API → Enable API
+
+## Documentation
+
+- **[SKILL.md](./SKILL.md)** — Core skill (150 lines, token-efficient)
+- **[scripts/README.md](./scripts/README.md)** — Script usage guide
+- **[docs/api-reference.md](./docs/api-reference.md)** — Complete API reference
+- **[docs/troubleshooting.md](./docs/troubleshooting.md)** — Common issues
+- **[docs/agent-guide.md](./docs/agent-guide.md)** — For AI agents
+
+## Example Workflows
+
+### Get Cases and Parse
 
 ```bash
-export TESTRAIL_URL="https://your-company.testrail.io"
-export TESTRAIL_USER="your@email.com"
-export TESTRAIL_API_KEY="your-api-key"
+source .env
+./scripts/get_cases.sh 1 10 | jq '.cases[] | {id, title, priority_id}'
 ```
 
-Get your API key from TestRail: **My Settings → API Keys**
+### CI Integration
 
-Enable API in TestRail: **Administration → Site Settings → API → Enable API**
+```bash
+# Create run
+RUN_ID=$(./scripts/create_run.sh 1 5 "CI Run" | jq -r '.run.id')
 
-## Usage
+# Run tests (your CI)
+pytest --json-report
 
-Once installed, your AI agent will automatically use this skill when you mention TestRail operations:
+# Push results
+./scripts/bulk_results.sh "$RUN_ID" test-results.json
 
+# Close run
+./scripts/close_run.sh "$RUN_ID"
 ```
-"Get all test cases from project 1, section 10"
-"Create a test run named 'Sprint 42 Regression' with cases [1, 2, 3]"
-"Add passed result for test ID 1042"
-"Upload bulk results from my test execution"
-```
 
-## What's Included
-
-### Test Case Management
-- Get projects, suites, sections
-- List/get test cases with filters
-- Create/update test cases with custom fields
-- Get case field definitions
-
-### Test Run Management
-- List test runs
-- Create test runs (all cases or specific IDs)
-- Get tests in a run
-- Close test runs
-
-### Results Management
-- Add result by test_id
-- Add result by case_id
-- Bulk add results (array)
-- Get result history
-
-### Common Workflows
-1. **Import cases → generate tests**: Fetch TestRail cases and generate automated test code
-2. **Execute → push results**: Create run, execute tests, upload results in bulk
+See [examples/workflow_ci.sh](./examples/workflow_ci.sh) for complete example.
 
 ## Why This Approach?
 
 Many teams cannot use community MCP servers due to security policies. This skill:
 
-1. Uses only official TestRail REST API
-2. No external dependencies to audit
-3. Full visibility into every API call
-4. Easy to customize for your use cases
+1. **No external dependencies** — only official TestRail REST API
+2. **Full visibility** — plain bash scripts, easy to audit
+3. **Modular** — load only what you need (token-efficient)
+4. **Customizable** — scripts are templates, adapt to your needs
 
-## Example: Create Test Run and Push Results
+## Token Efficiency
 
-```bash
-# Agent uses skill template to create run
-curl -s -X POST -u "$TESTRAIL_USER:$TESTRAIL_API_KEY" \
-  "${TESTRAIL_URL}/index.php?/api/v2/add_run/1" \
-  -H "Content-Type: application/json" \
-  -d '{"suite_id": 5, "name": "Automated Run", "case_ids": [1,2,3]}'
+The skill is designed to minimize token usage:
 
-# Then pushes results in bulk
-curl -s -X POST -u "$TESTRAIL_USER:$TESTRAIL_API_KEY" \
-  "${TESTRAIL_URL}/index.php?/api/v2/add_results/123" \
-  -H "Content-Type: application/json" \
-  -d '{"results": [{"test_id": 1042, "status_id": 1, "comment": "Passed"}]}'
-```
+- **SKILL.md:** ~150 lines (was 635) — 76% reduction
+- **Scripts:** Loaded by reference, not inline
+- **Docs:** Loaded on-demand when needed
+- **Examples:** Separate directory, explicit reference
+
+AI agents load SKILL.md (~3K tokens) and reference scripts/docs as needed.
 
 ## Compatible Agents
 
-Works with any agent supporting the open skills protocol:
-- Claude Code
+- Claude Code ✅
 - Cursor
-- Windsurf
+- Windsurf  
 - Codex
 - Cline
-- And 60+ more
-
-## Documentation
-
-Full API reference and examples: [SKILL.md](./SKILL.md)
-
-Official TestRail API docs: https://support.testrail.com/hc/en-us/categories/7076541806228-API-Manual
+- 60+ other MCP-compatible agents
 
 ## Security
 
-This skill:
 - Never stores credentials
-- Uses environment variables for auth
-- Makes direct HTTPS calls to your TestRail instance
+- Uses environment variables
+- Direct HTTPS to your TestRail instance
 - No telemetry, no external services
 
 ## Contributing
 
-Found a useful TestRail API pattern? PRs welcome!
+PRs welcome! See useful TestRail patterns? Add a script or example.
 
 ## License
 
-MIT License - see [LICENSE](./LICENSE)
+MIT — see [LICENSE](./LICENSE)
 
-## Author
+## Links
 
-Created for teams that need TestRail integration without external MCP dependencies.
+- **Repository:** https://github.com/kos322/testrail-skill
+- **TestRail API Docs:** https://support.testrail.com/hc/en-us/categories/7076541806228-API-Manual
+- **Skills Marketplace:** https://skills.sh
