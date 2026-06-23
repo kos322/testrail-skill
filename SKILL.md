@@ -480,6 +480,8 @@ curl -s -X POST -u "$TESTRAIL_USER:$TESTRAIL_API_KEY" \
 
 ## Reference
 
-- Official API docs: https://support.testrail.com/hc/en-us/articles/7077196481428-API-Methods-Reference
-- Case fields: https://support.testrail.com/hc/en-us/articles/7077819351572-Test-Cases#fields
-- Result fields: https://support.testrail.com/hc/en-us/articles/7077953003540-Results#fields
+- Official API Manual: https://support.testrail.com/hc/en-us/categories/7076541806228-API-Manual
+- API Reference: https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference
+- Cases API: https://support.testrail.com/hc/en-us/articles/7077292642580-Cases
+- Results API: https://support.testrail.com/hc/en-us/articles/7077819312404-Results
+- Introduction to TestRail API: https://support.testrail.com/hc/en-us/articles/7077083596436-Introduction-to-the-TestRail-API
