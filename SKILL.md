@@ -32,16 +32,14 @@ Direct TestRail REST API integration without external dependencies. Uses curl + 
 ### Projects & Structure
 ```bash
 # List projects
-curl -s -u "$TESTRAIL_USER:$TESTRAIL_API_KEY" \
-  "${TESTRAIL_URL}/index.php?/api/v2/get_projects"
+./scripts/get_project.sh 1
 
-# Get suites in project
+# Get suites in project (no wrapper yet; direct API call is fine here)
 curl -s -u "$TESTRAIL_USER:$TESTRAIL_API_KEY" \
   "${TESTRAIL_URL}/index.php?/api/v2/get_suites/PROJECT_ID"
 
 # Get sections (folders) in suite
-curl -s -u "$TESTRAIL_USER:$TESTRAIL_API_KEY" \
-  "${TESTRAIL_URL}/index.php?/api/v2/get_sections/PROJECT_ID&suite_id=SUITE_ID"
+./scripts/get_sections.sh PROJECT_ID SUITE_ID
 ```
 
 ### Test Cases
@@ -116,14 +114,14 @@ Located in `scripts/` directory. **No need to `source .env`** — scripts load c
 - 4 = Retest
 - 5 = Failed
 
-Check custom statuses: `curl ... /api/v2/get_statuses`
+Check custom statuses: `./scripts/get_reference_data.sh statuses`
 
 ## Common Patterns
 
 **Create payload files:**
 ```bash
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "$SCRIPT_DIR/scripts/common.sh"
+REPO_ROOT="$(pwd)"
+source "$REPO_ROOT/scripts/common.sh"
 load_credentials
 
 testrail_make_temp_file PAYLOAD payload
@@ -133,7 +131,7 @@ testrail_api POST "endpoint" -H "Content-Type: application/json" --data @"$PAYLO
 
 **Parse with jq:**
 ```bash
-curl ... | jq '.cases[] | {id, title, priority_id}'
+./scripts/get_cases.sh 1 | jq '.cases[] | {id, title, priority_id}'
 ```
 
 **Extract run ID:**
@@ -166,12 +164,11 @@ RUN_ID=$(./scripts/create_run.sh 1 5 "My Run" | jq -r '.id')
 ## Quick Troubleshooting
 
 ```bash
-# Verify credentials loaded
-echo $TESTRAIL_URL
+# Verify credentials loaded without exposing the API key
+echo "$TESTRAIL_URL"
 
 # Test API connectivity
-curl -s -u "$TESTRAIL_USER:$TESTRAIL_API_KEY" \
-  "${TESTRAIL_URL}/index.php?/api/v2/get_projects" | jq .
+./scripts/get_project.sh 1 | jq .
 
 # Common errors:
 # - "Authentication failed" → Check API key
