@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Close a test run in TestRail
+# Delete a TestRail attachment
 
 set -euo pipefail
 
@@ -8,7 +8,7 @@ source "$SCRIPT_DIR/common.sh"
 
 load_credentials
 
-RUN_ID="${1:?Usage: $0 RUN_ID}"
+ATTACHMENT_ID="${1:?Usage: $0 ATTACHMENT_ID}"
 
-testrail_api POST "close_run/${RUN_ID}" \
+testrail_api POST "delete_attachment/${ATTACHMENT_ID}" \
   -H "Content-Type: application/json"

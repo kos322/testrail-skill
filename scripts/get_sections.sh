@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Close a test run in TestRail
+# Get sections from a TestRail suite
 
 set -euo pipefail
 
@@ -8,7 +8,8 @@ source "$SCRIPT_DIR/common.sh"
 
 load_credentials
 
-RUN_ID="${1:?Usage: $0 RUN_ID}"
+PROJECT_ID="${1:?Usage: $0 PROJECT_ID SUITE_ID}"
+SUITE_ID="${2:?}"
 
-testrail_api POST "close_run/${RUN_ID}" \
+testrail_api GET "get_sections/${PROJECT_ID}&suite_id=${SUITE_ID}" \
   -H "Content-Type: application/json"

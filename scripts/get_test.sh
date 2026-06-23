@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Close a test run in TestRail
+# Get a single TestRail test instance by ID
 
 set -euo pipefail
 
@@ -8,7 +8,7 @@ source "$SCRIPT_DIR/common.sh"
 
 load_credentials
 
-RUN_ID="${1:?Usage: $0 RUN_ID}"
+TEST_ID="${1:?Usage: $0 TEST_ID}"
 
-testrail_api POST "close_run/${RUN_ID}" \
+testrail_api GET "get_test/${TEST_ID}" \
   -H "Content-Type: application/json"

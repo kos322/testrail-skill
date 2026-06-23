@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Close a test run in TestRail
+# Get all results for a TestRail run
 
 set -euo pipefail
 
@@ -10,5 +10,5 @@ load_credentials
 
 RUN_ID="${1:?Usage: $0 RUN_ID}"
 
-testrail_api POST "close_run/${RUN_ID}" \
+testrail_api GET "get_results_for_run/${RUN_ID}" \
   -H "Content-Type: application/json"

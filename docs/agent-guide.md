@@ -32,21 +32,9 @@ which bash || where.exe bash
 
 **Robust pattern:**
 ```bash
-if [ -f .env ]; then
-  set -a        # Auto-export variables
-  source .env
-  set +a        # Stop auto-export
-else
-  echo "Error: .env not found" >&2
-  exit 1
-fi
-```
-
-**Validation:**
-```bash
-: "${TESTRAIL_URL:?TESTRAIL_URL not set}"
-: "${TESTRAIL_USER:?TESTRAIL_USER not set}"
-: "${TESTRAIL_API_KEY:?TESTRAIL_API_KEY not set}"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/../scripts/common.sh"
+load_credentials
 ```
 
 ## Pre-execution Checks
@@ -54,23 +42,8 @@ fi
 Before running TestRail commands:
 
 ```bash
-# Check curl available
-curl --version >/dev/null 2>&1 || {
-  echo "Error: curl not found" >&2
-  exit 1
-}
-
-# Check credentials loaded
-[ -z "$TESTRAIL_URL" ] && echo "TESTRAIL_URL not set" >&2 && exit 1
-
-# Test API connectivity
-RESPONSE=$(curl -s -u "$TESTRAIL_USER:$TESTRAIL_API_KEY" \
-  "${TESTRAIL_URL}/index.php?/api/v2/get_projects")
-
-echo "$RESPONSE" | grep -q '"error"' && {
-  echo "API Error: $RESPONSE" >&2
-  exit 1
-}
+testrail_api GET "get_projects" -H "Content-Type: application/json" \
+  | jq '.projects | length'
 ```
 
 ## Handling Script Execution
@@ -97,36 +70,22 @@ fi
 
 **Capture and parse errors:**
 ```bash
-RESPONSE=$(curl ...)
-if echo "$RESPONSE" | jq -e '.error' >/dev/null 2>&1; then
-  ERROR=$(echo "$RESPONSE" | jq -r '.error')
-  echo "TestRail API error: $ERROR" >&2
+if ! RESPONSE="$(testrail_api GET "get_projects" -H "Content-Type: application/json")"; then
+  echo "TestRail request failed" >&2
   exit 1
 fi
 ```
 
 ## PowerShell Fallback (Last Resort)
 
-If Bash truly unavailable on Windows, translate commands:
+Do **not** parse or `source` `.env` in PowerShell. If the default `bash` command resolves to WSL or fails,
+call Git Bash explicitly so the repository scripts can continue loading credentials internally:
 
-**Parse .env in PowerShell:**
 ```powershell
-Get-Content .env | ForEach-Object {
-  if ($_ -match '^\s*#' -or $_ -match '^\s*$') { return }
-  $parts = $_ -split '=', 2
-  $key = $parts[0].Trim()
-  $value = $parts[1].Trim().Trim('"')
-  Set-Variable -Name $key -Value $value -Scope Global
-}
+& "C:\Program Files\Git\usr\bin\bash.exe" -lc 'cd /c/1/testrail-skill && /usr/bin/bash scripts/get_cases.sh 1'
 ```
 
-**curl.exe (not Invoke-RestMethod):**
-```powershell
-curl.exe -s -u "$($env:TESTRAIL_USER):$($env:TESTRAIL_API_KEY)" `
-  "$($env:TESTRAIL_URL)/index.php?/api/v2/get_projects"
-```
-
-**But prefer Bash tool** — it's simpler and already works.
+If Git Bash is unavailable, install Git for Windows instead of rewriting the authenticated flows in PowerShell.
 
 ## Debugging Commands
 

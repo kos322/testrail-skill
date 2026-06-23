@@ -13,31 +13,22 @@ SUITE_ID="${2:?}"
 NAME="${3:?}"
 CASE_IDS="${4:-}"  # Optional: comma-separated like "1,2,3"
 
-PAYLOAD=$(mktemp)
-trap "rm -f $PAYLOAD" EXIT
+testrail_make_temp_file PAYLOAD add-run
 
 if [[ -n "$CASE_IDS" ]]; then
-  # Convert "1,2,3" to [1,2,3]
-  CASE_ARRAY=$(echo "[$CASE_IDS]")
-  cat > "$PAYLOAD" <<EOF
-{
-  "suite_id": $SUITE_ID,
-  "name": "$NAME",
-  "include_all": false,
-  "case_ids": $CASE_ARRAY
-}
-EOF
+  CASE_ARRAY="$(printf '%s\n' "$CASE_IDS" | jq -Rc 'split(",") | map(gsub("^\\s+|\\s+$"; "")) | map(select(length > 0) | tonumber)')"
+  jq -n \
+    --argjson suite_id "$SUITE_ID" \
+    --arg name "$NAME" \
+    --argjson case_ids "$CASE_ARRAY" \
+    '{suite_id: $suite_id, name: $name, include_all: false, case_ids: $case_ids}' > "$PAYLOAD"
 else
-  cat > "$PAYLOAD" <<EOF
-{
-  "suite_id": $SUITE_ID,
-  "name": "$NAME",
-  "include_all": true
-}
-EOF
+  jq -n \
+    --argjson suite_id "$SUITE_ID" \
+    --arg name "$NAME" \
+    '{suite_id: $suite_id, name: $name, include_all: true}' > "$PAYLOAD"
 fi
 
-curl -s -X POST -u "$TESTRAIL_USER:$TESTRAIL_API_KEY" \
-  "${TESTRAIL_URL}/index.php?/api/v2/add_run/${PROJECT_ID}" \
+testrail_api POST "add_run/${PROJECT_ID}" \
   -H "Content-Type: application/json" \
-  -d @"$PAYLOAD"
+  --data @"$PAYLOAD"

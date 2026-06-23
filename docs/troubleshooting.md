@@ -29,15 +29,15 @@ ls -la .env
 # Check format (no spaces around =)
 cat .env
 
-# Test sourcing
-source .env && echo "URL: ${TESTRAIL_URL:0:20}..."
+# Test loading through the shared harness
+./scripts/get_cases.sh 1 | jq '.cases | length'
 ```
 
 **Fix:**
 - Ensure no spaces: `TESTRAIL_URL="..."` not `TESTRAIL_URL = "..."`
 - Use double quotes, not single quotes for values
 - No trailing spaces after closing quote
-- Run `set -a; source .env; set +a` for robust loading
+- Keep using the shared `load_credentials` flow from `scripts/common.sh`
 
 ## Authentication failed
 
@@ -168,14 +168,9 @@ done
 
 ### Robust .env loading
 ```bash
-if [ -f .env ]; then
-  set -a
-  source .env
-  set +a
-else
-  echo "Warning: .env not found"
-  exit 1
-fi
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/../scripts/common.sh"
+load_credentials
 ```
 
 ### Pre-flight checks

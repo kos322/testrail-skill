@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Close a test run in TestRail
+# Get results for a TestRail case within a run
 
 set -euo pipefail
 
@@ -8,7 +8,8 @@ source "$SCRIPT_DIR/common.sh"
 
 load_credentials
 
-RUN_ID="${1:?Usage: $0 RUN_ID}"
+RUN_ID="${1:?Usage: $0 RUN_ID CASE_ID}"
+CASE_ID="${2:?}"
 
-testrail_api POST "close_run/${RUN_ID}" \
+testrail_api GET "get_results_for_case/${RUN_ID}/${CASE_ID}" \
   -H "Content-Type: application/json"

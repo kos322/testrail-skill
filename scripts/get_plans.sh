@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Close a test run in TestRail
+# Get test plans from a TestRail project
 
 set -euo pipefail
 
@@ -8,7 +8,7 @@ source "$SCRIPT_DIR/common.sh"
 
 load_credentials
 
-RUN_ID="${1:?Usage: $0 RUN_ID}"
+PROJECT_ID="${1:?Usage: $0 PROJECT_ID}"
 
-testrail_api POST "close_run/${RUN_ID}" \
+testrail_api GET "get_plans/${PROJECT_ID}" \
   -H "Content-Type: application/json"

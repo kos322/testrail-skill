@@ -5,7 +5,7 @@ AI agent skill for TestRail REST API — zero dependencies, security-friendly al
 ## Features
 
 - ✅ **Zero dependencies** — pure curl + TestRail REST API
-- ✅ **Ready-to-use scripts** — 6 common operations pre-built
+- ✅ **Ready-to-use scripts** — read, write, metadata, and attachment helpers included
 - ✅ **Production-ready** — follows TestRail API best practices
 - ✅ **Cross-platform** — Linux, macOS, Windows (Git Bash/WSL)
 - ✅ **Token-efficient** — modular structure, load only what you need
@@ -49,17 +49,21 @@ cp .env.example .env
 testrail-skill/
 ├── SKILL.md              # Main skill file (~150 lines)
 ├── scripts/              # Ready-to-use bash scripts
-│   ├── get_cases.sh      # Get test cases
+│   ├── get_*.sh          # Read wrappers (projects, cases, runs, results, metadata)
 │   ├── create_run.sh     # Create test run
-│   ├── add_result.sh     # Add single result
-│   ├── bulk_results.sh   # Bulk upload results
-│   ├── import_cases.sh   # Export cases to JSON
+│   ├── update_run.sh     # Update test run
+│   ├── add_result*.sh    # Add single results by test or case
+│   ├── add_attachment.sh # Upload attachments
+│   ├── get_attachments.sh # List case/test attachments
+│   ├── delete_attachment.sh # Delete attachment
 │   └── close_run.sh      # Close test run
 ├── examples/             # Complete workflow examples
-│   ├── create_case.sh    # Create case with all fields
-│   └── workflow_ci.sh    # Full CI integration
+│   ├── create_case.sh                 # Create case with all fields
+│   ├── workflow_ci.sh                 # Full CI integration
+│   ├── workflow_plans_milestones.sh   # Plan + milestone lifecycle
+│   └── workflow_attachments.sh        # Attachment lifecycle
 └── docs/                 # Detailed documentation
-    ├── api-reference.md  # All 20+ API endpoints
+    ├── api-reference.md  # All 50 tracked API endpoints
     ├── troubleshooting.md # Common issues & solutions
     └── agent-guide.md    # For AI agents
 ```
@@ -93,7 +97,7 @@ Claude Code's Bash tool works seamlessly with Git Bash.
 
 ```bash
 # Create run
-RUN_ID=$(./scripts/create_run.sh 1 5 "CI Run" | jq -r '.run.id')
+RUN_ID=$(./scripts/create_run.sh 1 5 "CI Run" | jq -r '.id')
 
 # Run tests (your CI)
 pytest --json-report
@@ -108,6 +112,13 @@ pytest --json-report
 **Security:** Scripts load credentials internally — they never appear in LLM context.
 
 See [examples/workflow_ci.sh](./examples/workflow_ci.sh) for complete example.
+
+### Full Lifecycle Verification
+
+```bash
+./examples/workflow_plans_milestones.sh 1 1
+./examples/workflow_attachments.sh 1 1 10
+```
 
 ## Why This Approach?
 
