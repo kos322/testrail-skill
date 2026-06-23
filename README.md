@@ -31,7 +31,25 @@ npx skills add KanstantsinSudzilous/testrail-skill -g -y
 
 **Windows Users:** This skill uses Bash syntax. Use **Git Bash** (included with [Git for Windows](https://git-scm.com/download/win)) or **WSL**. Claude Code's Bash tool works seamlessly with Git Bash on Windows.
 
-Set these environment variables:
+### Configuration
+
+**Recommended:** Create a `.env` file in your project:
+
+```bash
+cat > .env <<'EOF'
+TESTRAIL_URL="https://your-company.testrail.io"
+TESTRAIL_USER="your@email.com"
+TESTRAIL_API_KEY="your-api-key"
+EOF
+
+# Add to .gitignore
+echo ".env" >> .gitignore
+
+# Load credentials
+source .env
+```
+
+**Alternative:** Set global environment variables in `~/.bashrc`:
 
 ```bash
 export TESTRAIL_URL="https://your-company.testrail.io"
@@ -40,6 +58,8 @@ export TESTRAIL_API_KEY="your-api-key"
 ```
 
 Get your API key from TestRail: **My Settings → API Keys**
+
+Enable API in TestRail: **Administration → Site Settings → API → Enable API**
 
 ## Usage
 

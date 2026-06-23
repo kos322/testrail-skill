@@ -15,3 +15,7 @@ Thumbs.db
 # Environment
 .env
 .env.local
+# Local credentials - ignored
+*.bat
+.env
+.env.local

@@ -15,16 +15,77 @@ Do NOT translate to PowerShell — the Bash tool provides native Bash environmen
 
 ## Prerequisites
 
-Set these environment variables:
-- `TESTRAIL_URL` — your instance URL (e.g., `https://company.testrail.io`)
-- `TESTRAIL_USER` — your email
-- `TESTRAIL_API_KEY` — API key from My Settings → API Keys
+Configure TestRail credentials using one of these methods:
+
+### Option 1: Project `.env` file (Recommended)
+
+Create `.env` in your project directory:
+
+```bash
+cat > .env <<'EOF'
+TESTRAIL_URL="https://your-company.testrail.io"
+TESTRAIL_USER="your@email.com"
+TESTRAIL_API_KEY="your-api-key"
+EOF
+
+# Add to .gitignore to avoid committing secrets
+echo ".env" >> .gitignore
+```
+
+Then source it before running TestRail commands:
+
+```bash
+source .env
+curl -s -u "$TESTRAIL_USER:$TESTRAIL_API_KEY" "${TESTRAIL_URL}/index.php?/api/v2/get_projects"
+```
+
+**Why this approach?**
+- Project-specific credentials (different projects = different TestRail instances)
+- Easy to `.gitignore` and keep out of version control
+- Standard pattern (many tools support `.env`)
+- Works across terminal sessions after `source .env`
+
+### Option 2: Global environment variables
+
+Add to `~/.bashrc` or `~/.bash_profile`:
+
+```bash
+export TESTRAIL_URL="https://your-company.testrail.io"
+export TESTRAIL_USER="your@email.com"
+export TESTRAIL_API_KEY="your-api-key"
+```
+
+Reload your shell: `source ~/.bashrc`
+
+**Use case:** When you work with one TestRail instance across all projects.
+
+### Option 3: Inline variables (for testing/one-off commands)
+
+```bash
+TESTRAIL_URL="https://company.testrail.io" \
+TESTRAIL_USER="user@email.com" \
+TESTRAIL_API_KEY="your-key" \
+curl -s -u "$TESTRAIL_USER:$TESTRAIL_API_KEY" "${TESTRAIL_URL}/index.php?/api/v2/get_projects"
+```
+
+**Use case:** Quick testing without persisting credentials.
+
+### Get your API key
+
+1. Login to TestRail
+2. Go to **My Settings → API Keys**
+3. Click **Add Key**
+4. Copy the generated key
+
+**Note:** Ensure API is enabled in **Administration → Site Settings → API**.
 
 Base URL: `${TESTRAIL_URL}/index.php?/api/v2`
 
 ## How to Use
 
-All examples use Basic Auth: `-u "$TESTRAIL_USER:$TESTRAIL_API_KEY"`
+All examples assume credentials are set (via `.env`, global export, or inline).
+
+Examples use Basic Auth: `-u "$TESTRAIL_USER:$TESTRAIL_API_KEY"`
 
 ### 1. Get Projects
 
