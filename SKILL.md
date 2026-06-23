@@ -13,6 +13,34 @@ description: TestRail REST API for test management. Use when user mentions "Test
 
 Do NOT translate to PowerShell — the Bash tool provides native Bash environment on Windows.
 
+## For AI Agents
+
+**Preferred approach:** Use Bash tool directly (Claude Code) or invoke `bash -c` if available.
+
+**If Bash fails on Windows:**
+1. Check common Git Bash paths: `C:\Program Files\Git\bin\bash.exe`
+2. Try with explicit path: `/c/Program\ Files/Git/bin/bash.exe -c "..."`
+3. Last resort: Translate to PowerShell (see Troubleshooting for examples)
+
+**Loading .env reliably:**
+```bash
+# Robust .env loading (handles missing file gracefully)
+if [ -f .env ]; then
+  set -a
+  source .env
+  set +a
+else
+  echo "Warning: .env not found, using inline credentials"
+fi
+```
+
+**Testing before execution:**
+```bash
+# Quick sanity check
+curl --version >/dev/null 2>&1 || echo "curl not available"
+[ -z "$TESTRAIL_URL" ] && echo "TESTRAIL_URL not set"
+```
+
 ## Prerequisites
 
 Configure TestRail credentials using one of these methods:
@@ -536,6 +564,55 @@ curl -s -X POST -u "$TESTRAIL_USER:$TESTRAIL_API_KEY" \
   -H "Content-Type: application/json" \
   -d @/tmp/results.json
 ```
+
+## Troubleshooting
+
+### Bash not found on Windows
+
+If running `bash` fails, verify Git Bash installation:
+
+```bash
+# Check if bash is in PATH
+which bash || where.exe bash
+
+# Common Git Bash locations:
+# C:\Program Files\Git\bin\bash.exe
+# C:\Program Files\Git\usr\bin\bash.exe
+```
+
+### Credentials not loading
+
+Test `.env` file manually:
+
+```bash
+# Verify .env exists
+ls -la .env
+
+# Check contents (without exposing secrets)
+head -1 .env
+
+# Test sourcing
+source .env && echo "TESTRAIL_URL is set: ${TESTRAIL_URL:0:20}..."
+```
+
+### curl command fails
+
+```bash
+# Test curl is available
+curl --version
+
+# Test basic connectivity
+curl -v https://your-instance.testrail.io/
+
+# Test authentication (should NOT return "Authentication failed")
+curl -s -u "$TESTRAIL_USER:$TESTRAIL_API_KEY" \
+  "${TESTRAIL_URL}/index.php?/api/v2/get_projects"
+```
+
+Common errors:
+- `Authentication failed` → Check API key, ensure API is enabled in TestRail
+- `API is disabled` → Enable in Administration → Site Settings → API
+- `No host part in URL` → Check `TESTRAIL_URL` format (must include `https://`)
 
 ## Guidelines
 
