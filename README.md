@@ -29,7 +29,7 @@ Or point at an existing env file:
 export TESTRAIL_ENV_FILE=/path/to/.env
 ```
 
-**2. Run the built-in health check:**
+**2. Run the built-in health check if setup/auth is unknown:**
 ```bash
 ./scripts/doctor.sh | jq .
 ```
@@ -42,7 +42,10 @@ export TESTRAIL_ENV_FILE=/path/to/.env
 # Count total cases safely
 ./scripts/count_cases.sh 1
 
-# Read one page of cases
+# List all cases with auto-pagination
+./scripts/list_cases.sh 1
+
+# Read one raw page of cases
 ./scripts/get_cases.sh 1 10 --suite 1
 ```
 
@@ -62,6 +65,7 @@ testrail-skill/
 │   ├── doctor.sh         # Env/auth/access health check
 │   ├── get_projects.sh   # List accessible projects
 │   ├── count_cases.sh    # Count cases with pagination
+│   ├── list_cases.sh     # List cases with auto-pagination
 │   ├── get_*.sh          # Read wrappers (projects, cases, runs, results, metadata)
 │   ├── create_run.sh     # Create test run
 │   ├── update_run.sh     # Update test run
@@ -77,7 +81,14 @@ testrail-skill/
 │   └── workflow_attachments.sh        # Attachment lifecycle
 ├── powershell/           # Thin wrappers for PowerShell-only environments
 │   ├── doctor.ps1
+│   ├── get-case.ps1
+│   ├── get-case-field.ps1
+│   ├── get-case-precondition.ps1
+│   ├── get-cases.ps1
 │   ├── get-projects.ps1
+│   ├── get-runs.ps1
+│   ├── get-sections.ps1
+│   ├── list-cases.ps1
 │   └── count-cases.ps1
 └── docs/                 # Detailed documentation
     ├── api-reference.md      # API notes and payload shapes
@@ -110,11 +121,28 @@ If you only have PowerShell, use the thin wrappers in `powershell/`.
 # How many cases are there?
 ./scripts/count_cases.sh 1
 
+# Give me the full case list
+./scripts/list_cases.sh 1
+
+# Give me the full case list as structured JSON
+./scripts/list_cases.sh 1 --format json | jq '.cases[0]'
+
 # What projects can I access?
 ./scripts/get_projects.sh | jq '(.projects // .) | map({id, name})'
 
 # What is the case title?
 ./scripts/get_case.sh 1 | jq -r .title
+
+# What is the precondition for a case?
+./scripts/get_case_precondition.sh 2
+
+# Windows / PowerShell shortest path
+.\powershell\count-cases.ps1 1
+.\powershell\list-cases.ps1 1
+.\powershell\list-cases.ps1 1 --format json
+.\powershell\get-case.ps1 93
+.\powershell\get-case-field.ps1 2 custom_preconds
+.\powershell\get-case-precondition.ps1 2
 
 # Does my setup actually work?
 ./scripts/doctor.sh | jq '{ok, project_count: .api.project_count}'

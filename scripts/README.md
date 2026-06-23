@@ -22,9 +22,18 @@ Scripts load credentials automatically. They print `Using env: ...` to **stderr*
 ## First commands to run
 
 ```bash
-./doctor.sh
+# If project ID is unknown
 ./get_projects.sh | jq '(.projects // .) | map({id, name})'
+
+# If project ID is known and you only need read-only answers
 ./count_cases.sh 1
+./list_cases.sh 1
+./list_cases.sh 1 --format json | jq '.cases[0]'
+./get_case.sh 93 | jq -r .title
+./get_case_precondition.sh 2
+
+# If setup/auth is failing
+./doctor.sh
 ```
 
 ## PowerShell-only environments
@@ -32,9 +41,17 @@ Scripts load credentials automatically. They print `Using env: ...` to **stderr*
 If Bash is not your primary shell on Windows, use the thin wrappers in `../powershell/`:
 
 ```powershell
-.\powershell\doctor.ps1
-.\powershell\get-projects.ps1
 .\powershell\count-cases.ps1 1
+.\powershell\list-cases.ps1 1
+.\powershell\list-cases.ps1 1 --format json
+.\powershell\get-case.ps1 93
+.\powershell\get-case-field.ps1 2 custom_preconds
+.\powershell\get-case-precondition.ps1 2
+.\powershell\get-cases.ps1 1 10 --suite 1
+.\powershell\get-sections.ps1 1 1
+.\powershell\get-runs.ps1 1
+.\powershell\get-projects.ps1
+.\powershell\doctor.ps1
 ```
 
 The PowerShell wrappers only launch the bash scripts. They do not parse `.env` themselves.
@@ -73,13 +90,75 @@ Examples:
 ./count_cases.sh 1 10 --suite 1
 ```
 
+**Output contract:** plain integer.
+
+### `list_cases.sh`
+
+List cases across all pages.
+
+```bash
+./list_cases.sh PROJECT_ID [SECTION_ID] [--suite SUITE_ID] [--format plain|json]
+```
+
+Examples:
+
+```bash
+./list_cases.sh 1
+./list_cases.sh 1 10 --suite 1
+./list_cases.sh 1 --format json | jq '.cases[0]'
+```
+
+Plain output is optimized for quick answers:
+
+```text
+C14: Valid Checkout API Call
+C15: Invalid Payment Token
+```
+
+**Output contract:**
+
+- default: plain text (`C{id}: {title}`)
+- `--format json`: JSON object with `count` and `cases`
+
+### `get_case.sh`
+
+Returns a full JSON case object.
+
+### `get_case_field.sh`
+
+Return one field from a case without manual `jq` field discovery.
+
+```bash
+./get_case_field.sh CASE_ID FIELD
+```
+
+Examples:
+
+```bash
+./get_case_field.sh 2 custom_preconds
+./get_case_field.sh 2 priority_id
+```
+
+**Output contract:** plain string/scalar for simple fields; compact JSON for arrays/objects.
+
+### `get_case_precondition.sh`
+
+Shortcut for `custom_preconds`.
+
+```bash
+./get_case_precondition.sh CASE_ID
+```
+
 ## Read scripts
 
 ```bash
 ./get_project.sh PROJECT_ID
 ./get_sections.sh PROJECT_ID SUITE_ID
 ./get_case.sh CASE_ID
+./get_case_field.sh CASE_ID FIELD
+./get_case_precondition.sh CASE_ID
 ./get_cases.sh PROJECT_ID [SECTION_ID] [--suite SUITE_ID] [--limit LIMIT] [--offset OFFSET]
+./list_cases.sh PROJECT_ID [SECTION_ID] [--suite SUITE_ID] [--format plain|json]
 ./get_runs.sh PROJECT_ID
 ./get_test.sh TEST_ID
 ./get_results.sh TEST_ID
@@ -158,17 +237,19 @@ Examples:
 
 ### `import_cases.sh`
 
-Export cases from a section and follow pagination automatically.
+Export cases across the full project or a filtered section and follow pagination automatically.
 
 ```bash
-./import_cases.sh PROJECT_ID SECTION_ID [OUTPUT_FILE] [--suite SUITE_ID]
+./import_cases.sh PROJECT_ID [SECTION_ID] [OUTPUT_FILE] [--section SECTION_ID] [--suite SUITE_ID] [--output OUTPUT_FILE]
 ```
 
 Examples:
 
 ```bash
+./import_cases.sh 1
 ./import_cases.sh 1 10
 ./import_cases.sh 1 10 cases.json --suite 1
+./import_cases.sh 1 --output all-cases.json
 ```
 
 ### Example workflows

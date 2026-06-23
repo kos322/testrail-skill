@@ -9,22 +9,49 @@ source "$SCRIPT_DIR/common.sh"
 load_credentials
 
 usage() {
-  echo "Usage: $0 PROJECT_ID SECTION_ID [OUTPUT_FILE] [--suite SUITE_ID]" >&2
+  echo "Usage: $0 PROJECT_ID [SECTION_ID] [OUTPUT_FILE] [--section SECTION_ID] [--suite SUITE_ID] [--output OUTPUT_FILE]" >&2
   exit 1
 }
 
 PROJECT_ID="${1:-}"
-SECTION_ID="${2:-}"
-OUTPUT_FILE="${3:-cases_export.json}"
-[[ -n "$PROJECT_ID" && -n "$SECTION_ID" ]] || usage
-shift 3 || true
+[[ -n "$PROJECT_ID" ]] || usage
+shift
+
+SECTION_ID=""
+OUTPUT_FILE="cases_export.json"
+
+if (($#)) && [[ "$1" != --* ]]; then
+  SECTION_ID="$1"
+  shift
+fi
+
+if (($#)) && [[ "$1" != --* ]]; then
+  OUTPUT_FILE="$1"
+  shift
+fi
 
 SUITE_ID=""
+PAGE_LIMIT="${TESTRAIL_PAGE_LIMIT:-250}"
 while (($#)); do
   case "$1" in
+    --section)
+      SECTION_ID="${2:-}"
+      [[ -n "$SECTION_ID" ]] || usage
+      shift 2
+      ;;
     --suite)
       SUITE_ID="${2:-}"
       [[ -n "$SUITE_ID" ]] || usage
+      shift 2
+      ;;
+    --output)
+      OUTPUT_FILE="${2:-}"
+      [[ -n "$OUTPUT_FILE" ]] || usage
+      shift 2
+      ;;
+    --limit)
+      PAGE_LIMIT="${2:-}"
+      [[ -n "$PAGE_LIMIT" ]] || usage
       shift 2
       ;;
     *)
@@ -33,57 +60,24 @@ while (($#)); do
   esac
 done
 
-PAGE_LIMIT="${TESTRAIL_PAGE_LIMIT:-250}"
-OFFSET=0
-TOTAL_CASES=0
+COLLECT_ARGS=(--limit "$PAGE_LIMIT")
+[[ -n "$SECTION_ID" ]] && COLLECT_ARGS+=(--section "$SECTION_ID")
+[[ -n "$SUITE_ID" ]] && COLLECT_ARGS+=(--suite "$SUITE_ID")
 
 testrail_make_temp_file CASES_FILE import-cases
-printf '[]\n' > "$CASES_FILE"
-
-while :; do
-  PAGE_ARGS=(--section "$SECTION_ID" --limit "$PAGE_LIMIT" --offset "$OFFSET")
-  [[ -n "$SUITE_ID" ]] && PAGE_ARGS+=(--suite "$SUITE_ID")
-
-  ENDPOINT="$(testrail_cases_endpoint "$PROJECT_ID" "${PAGE_ARGS[@]}")"
-  PAGE_JSON="$(testrail_api GET "$ENDPOINT" -H "Content-Type: application/json")"
-
-  testrail_make_temp_file PAGE_FILE import-cases-page
-  testrail_make_temp_file MERGED_FILE import-cases-merged
-  printf '%s\n' "$PAGE_JSON" > "$PAGE_FILE"
-
-  PAGE_CASE_COUNT="$(jq -er '(.cases // []) | length' "$PAGE_FILE")"
-  TOTAL_CASES=$((TOTAL_CASES + PAGE_CASE_COUNT))
-
-  jq -s '.[0] + (.[1].cases // [])' "$CASES_FILE" "$PAGE_FILE" > "$MERGED_FILE"
-  mv "$MERGED_FILE" "$CASES_FILE"
-
-  NEXT_OFFSET="$(testrail_next_offset "$PAGE_FILE")"
-  if [[ -n "$NEXT_OFFSET" ]]; then
-    OFFSET="$NEXT_OFFSET"
-    continue
-  fi
-
-  PAGE_SIZE="$(jq -r '.size // empty' "$PAGE_FILE")"
-  if [[ "$PAGE_SIZE" =~ ^[0-9]+$ ]] && (( OFFSET + PAGE_CASE_COUNT < PAGE_SIZE )); then
-    OFFSET=$((OFFSET + PAGE_CASE_COUNT))
-    continue
-  fi
-
-  break
-done
+testrail_collect_cases "$PROJECT_ID" "${COLLECT_ARGS[@]}" > "$CASES_FILE"
 
 jq -n \
   --argjson project_id "$PROJECT_ID" \
-  --argjson section_id "$SECTION_ID" \
+  --arg section_id "${SECTION_ID:-}" \
   --arg suite_id "${SUITE_ID:-}" \
-  --argjson count "$TOTAL_CASES" \
-  --slurpfile cases "$CASES_FILE" \
+  --slurpfile payload "$CASES_FILE" \
   '{
     project_id: $project_id,
-    section_id: $section_id,
+    section_id: (if $section_id == "" then null else ($section_id | tonumber) end),
     suite_id: (if $suite_id == "" then null else ($suite_id | tonumber) end),
-    count: $count,
-    cases: $cases[0]
+    count: $payload[0].count,
+    cases: $payload[0].cases
   }' > "$OUTPUT_FILE"
 
 echo "Exported cases to $OUTPUT_FILE"

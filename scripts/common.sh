@@ -33,11 +33,6 @@ testrail_cleanup() {
     rm -rf -- "${TESTRAIL_TEMP_ROOT}"
   fi
 
-  if [[ -n "${TESTRAIL_REPO_ROOT:-}" && -d "${TESTRAIL_REPO_ROOT}/.testrail-tmp" ]] && \
-    [[ -z "$(ls -A "${TESTRAIL_REPO_ROOT}/.testrail-tmp" 2>/dev/null)" ]]; then
-    rmdir "${TESTRAIL_REPO_ROOT}/.testrail-tmp" 2>/dev/null || true
-  fi
-
   return "$exit_code"
 }
 
@@ -191,6 +186,81 @@ testrail_next_offset() {
   local response_file="${1:?Usage: testrail_next_offset RESPONSE_FILE}"
 
   jq -er '._links.next // empty | capture("(^|[?&])offset=(?<offset>[0-9]+)") | .offset' "$response_file" 2>/dev/null || true
+}
+
+testrail_collect_cases() {
+  local project_id="${1:?Usage: testrail_collect_cases PROJECT_ID [--suite SUITE_ID] [--section SECTION_ID] [--limit LIMIT]}"
+  shift
+
+  local suite_id="" section_id="" page_limit="${TESTRAIL_PAGE_LIMIT:-250}"
+  local offset=0 total_cases=0
+  local page_json page_case_count next_offset page_size endpoint
+  local cases_file page_file merged_file
+
+  while (($#)); do
+    case "$1" in
+      --suite)
+        suite_id="${2:?Usage: testrail_collect_cases PROJECT_ID [--suite SUITE_ID] [--section SECTION_ID] [--limit LIMIT]}"
+        shift 2
+        ;;
+      --section)
+        section_id="${2:?Usage: testrail_collect_cases PROJECT_ID [--suite SUITE_ID] [--section SECTION_ID] [--limit LIMIT]}"
+        shift 2
+        ;;
+      --limit)
+        page_limit="${2:?Usage: testrail_collect_cases PROJECT_ID [--suite SUITE_ID] [--section SECTION_ID] [--limit LIMIT]}"
+        shift 2
+        ;;
+      *)
+        echo "Error: unsupported collect_cases option '$1'" >&2
+        return 1
+        ;;
+    esac
+  done
+
+  testrail_make_temp_file cases_file collect-cases
+  printf '[]\n' > "$cases_file"
+
+  while :; do
+    local page_args=(--limit "$page_limit" --offset "$offset")
+    [[ -n "$section_id" ]] && page_args+=(--section "$section_id")
+    [[ -n "$suite_id" ]] && page_args+=(--suite "$suite_id")
+
+    endpoint="$(testrail_cases_endpoint "$project_id" "${page_args[@]}")"
+    page_json="$(testrail_api GET "$endpoint" -H "Content-Type: application/json")"
+
+    testrail_make_temp_file page_file collect-cases-page
+    testrail_make_temp_file merged_file collect-cases-merged
+    printf '%s\n' "$page_json" > "$page_file"
+
+    page_case_count="$(jq -er '(.cases // []) | length' "$page_file")"
+    total_cases=$((total_cases + page_case_count))
+
+    jq -s '.[0] + (.[1].cases // [])' "$cases_file" "$page_file" > "$merged_file"
+    mv "$merged_file" "$cases_file"
+
+    next_offset="$(testrail_next_offset "$page_file")"
+    if [[ -n "$next_offset" ]]; then
+      offset="$next_offset"
+      continue
+    fi
+
+    page_size="$(jq -r '.size // empty' "$page_file")"
+    if [[ "$page_size" =~ ^[0-9]+$ ]] && (( offset + page_case_count < page_size )); then
+      offset=$((offset + page_case_count))
+      continue
+    fi
+
+    break
+  done
+
+  jq -n \
+    --argjson count "$total_cases" \
+    --slurpfile cases "$cases_file" \
+    '{
+      count: $count,
+      cases: $cases[0]
+    }'
 }
 
 testrail_api() {

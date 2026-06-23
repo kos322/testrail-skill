@@ -45,9 +45,18 @@ Helper script:
 ```
 
 Use `./scripts/count_cases.sh` for totals.
+Use `./scripts/list_cases.sh` for a full case list without manual pagination handling.
 
 ### GET /get_case/:id
 Get single test case by ID.
+
+Helper scripts:
+
+```bash
+./scripts/get_case.sh CASE_ID
+./scripts/get_case_field.sh CASE_ID FIELD
+./scripts/get_case_precondition.sh CASE_ID
+```
 
 ### POST /add_case/:section_id
 Create test case in section.
