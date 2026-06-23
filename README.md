@@ -13,6 +13,7 @@ This skill provides ready-to-use curl examples for TestRail API operations. No M
 - ✅ **Production-ready** — follows TestRail API best practices
 - ✅ **Bulk operations** — efficient batch result uploads
 - ✅ **Complete workflows** — import cases → generate tests → push results
+- ✅ **Cross-platform** — Bash/Linux and PowerShell/Windows versions included
 
 ## Installation
 
@@ -110,7 +111,8 @@ Works with any agent supporting the open skills protocol:
 
 ## Documentation
 
-Full API reference and examples: see [SKILL.md](./SKILL.md)
+- **Bash/Linux version**: [SKILL.md](./SKILL.md)
+- **PowerShell/Windows version**: [SKILL-POWERSHELL.md](./SKILL-POWERSHELL.md)
 
 Official TestRail API docs: https://support.testrail.com/hc/en-us/articles/7077196481428
 
