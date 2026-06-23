@@ -16,6 +16,8 @@ All requests use Basic Auth:
 ### GET /get_projects
 List all projects accessible to user.
 
+Helper script: `./scripts/get_projects.sh`
+
 ### GET /get_project/:id
 Get project details by ID.
 
@@ -35,6 +37,14 @@ Returns a paginated object with a `sections` array plus `offset`, `limit`, `size
 
 ### GET /get_cases/:project_id[&suite_id=:id][&section_id=:id]
 Get test cases. Optional filters: suite_id, section_id.
+
+Helper script:
+
+```bash
+./scripts/get_cases.sh PROJECT_ID [SECTION_ID] [--suite SUITE_ID]
+```
+
+Use `./scripts/count_cases.sh` for totals.
 
 ### GET /get_case/:id
 Get single test case by ID.
@@ -74,6 +84,8 @@ Common disposable verification path:
 
 ### POST /delete_case/:id
 Delete test case.
+
+Helper script: `./scripts/delete_case.sh CASE_ID`
 
 ## Test Runs
 
@@ -358,6 +370,15 @@ Custom fields are prefixed with `custom_`:
 Add to URL: `&limit=250&offset=0`
 
 Default limit: 250 (max)
+
+**Important:** do not treat `.size` as a safe grand total unless `_links.next` is empty.
+
+Preferred counting path:
+
+```bash
+./scripts/count_cases.sh 1
+./scripts/count_cases.sh 1 10 --suite 1
+```
 
 ## Rate Limiting
 

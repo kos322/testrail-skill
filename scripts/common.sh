@@ -4,6 +4,8 @@
 TESTRAIL_REPO_ROOT=""
 TESTRAIL_TEMP_ROOT=""
 TESTRAIL_CLEANUP_REGISTERED=0
+TESTRAIL_ENV_FILE_USED=""
+TESTRAIL_ENV_SOURCE=""
 
 testrail_repo_root() {
   cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd
@@ -16,6 +18,12 @@ testrail_require_command() {
     echo "Error: required command '$command_name' not found" >&2
     exit 1
   }
+}
+
+testrail_command_exists() {
+  local command_name="${1:?Usage: testrail_command_exists COMMAND}"
+
+  command -v "$command_name" >/dev/null 2>&1
 }
 
 testrail_cleanup() {
@@ -69,6 +77,120 @@ testrail_error_excerpt() {
   [[ -s "$file_path" ]] || return 0
 
   tr '\r\n' '  ' < "$file_path" | head -c 400
+}
+
+testrail_normalize_input_path() {
+  local input_path="${1:?Usage: testrail_normalize_input_path PATH}"
+
+  if [[ "$input_path" =~ ^[A-Za-z]:[\\/].* ]] && testrail_command_exists cygpath; then
+    cygpath -u "$input_path"
+    return 0
+  fi
+
+  printf '%s\n' "$input_path"
+}
+
+testrail_find_ancestor_file() {
+  local start_dir="${1:?Usage: testrail_find_ancestor_file START_DIR FILE_NAME}"
+  local file_name="${2:?Usage: testrail_find_ancestor_file START_DIR FILE_NAME}"
+  local current_dir parent_dir
+
+  current_dir="$(cd "$start_dir" && pwd)"
+
+  while :; do
+    if [[ -f "${current_dir}/${file_name}" ]]; then
+      printf '%s\n' "${current_dir}/${file_name}"
+      return 0
+    fi
+
+    parent_dir="$(dirname "$current_dir")"
+    if [[ "$parent_dir" == "$current_dir" ]]; then
+      return 1
+    fi
+
+    current_dir="$parent_dir"
+  done
+}
+
+testrail_load_env_file() {
+  local env_file="${1:?Usage: testrail_load_env_file ENV_FILE [SOURCE_LABEL]}"
+  local source_label="${2:-.env}"
+
+  set -a
+  # shellcheck disable=SC1090
+  source "$env_file"
+  set +a
+
+  TESTRAIL_ENV_FILE_USED="$env_file"
+  TESTRAIL_ENV_SOURCE="$source_label"
+}
+
+testrail_emit_env_source() {
+  local show_env_source="${TESTRAIL_SHOW_ENV_SOURCE:-auto}"
+  local repo_env_file="${TESTRAIL_REPO_ROOT}/.env"
+
+  if [[ "$show_env_source" == "0" || -z "${TESTRAIL_ENV_FILE_USED:-}" ]]; then
+    return 0
+  fi
+
+  if [[ "$show_env_source" == "auto" ]] && \
+    [[ "${TESTRAIL_ENV_SOURCE:-}" == "ancestor-search" ]] && \
+    [[ "${TESTRAIL_ENV_FILE_USED}" == "$repo_env_file" ]]; then
+    return 0
+  fi
+
+  if [[ -n "${TESTRAIL_ENV_SOURCE:-}" ]]; then
+    echo "Using env: ${TESTRAIL_ENV_FILE_USED} (${TESTRAIL_ENV_SOURCE})" >&2
+    return 0
+  fi
+
+  echo "Using env: ${TESTRAIL_ENV_FILE_USED}" >&2
+}
+
+testrail_cases_endpoint() {
+  local project_id="${1:?Usage: testrail_cases_endpoint PROJECT_ID [--suite SUITE_ID] [--section SECTION_ID] [--limit LIMIT] [--offset OFFSET]}"
+  shift
+
+  local suite_id="" section_id="" limit="" offset="" endpoint
+  endpoint="get_cases/${project_id}"
+
+  while (($#)); do
+    case "$1" in
+      --suite)
+        suite_id="${2:?Usage: testrail_cases_endpoint PROJECT_ID [--suite SUITE_ID] [--section SECTION_ID] [--limit LIMIT] [--offset OFFSET]}"
+        shift 2
+        ;;
+      --section)
+        section_id="${2:?Usage: testrail_cases_endpoint PROJECT_ID [--suite SUITE_ID] [--section SECTION_ID] [--limit LIMIT] [--offset OFFSET]}"
+        shift 2
+        ;;
+      --limit)
+        limit="${2:?Usage: testrail_cases_endpoint PROJECT_ID [--suite SUITE_ID] [--section SECTION_ID] [--limit LIMIT] [--offset OFFSET]}"
+        shift 2
+        ;;
+      --offset)
+        offset="${2:?Usage: testrail_cases_endpoint PROJECT_ID [--suite SUITE_ID] [--section SECTION_ID] [--limit LIMIT] [--offset OFFSET]}"
+        shift 2
+        ;;
+      *)
+        echo "Error: unsupported get_cases option '$1'" >&2
+        return 1
+        ;;
+    esac
+  done
+
+  [[ -n "$suite_id" ]] && endpoint+="&suite_id=${suite_id}"
+  [[ -n "$section_id" ]] && endpoint+="&section_id=${section_id}"
+  [[ -n "$limit" ]] && endpoint+="&limit=${limit}"
+  [[ -n "$offset" ]] && endpoint+="&offset=${offset}"
+
+  printf '%s\n' "$endpoint"
+}
+
+testrail_next_offset() {
+  local response_file="${1:?Usage: testrail_next_offset RESPONSE_FILE}"
+
+  jq -er '._links.next // empty | capture("(^|[?&])offset=(?<offset>[0-9]+)") | .offset' "$response_file" 2>/dev/null || true
 }
 
 testrail_api() {
@@ -132,24 +254,35 @@ testrail_api() {
 
 # Load credentials from .env (not exposed to LLM context)
 load_credentials() {
-  TESTRAIL_REPO_ROOT="$(testrail_repo_root)"
+  local env_override env_file
 
-  if [ -f "$TESTRAIL_REPO_ROOT/.env" ]; then
-    set -a
-    source "$TESTRAIL_REPO_ROOT/.env"
-    set +a
-  elif [ -f "$TESTRAIL_REPO_ROOT/../.env" ]; then
-    set -a
-    source "$TESTRAIL_REPO_ROOT/../.env"
-    set +a
+  TESTRAIL_REPO_ROOT="$(testrail_repo_root)"
+  TESTRAIL_ENV_FILE_USED=""
+  TESTRAIL_ENV_SOURCE=""
+
+  if [[ -n "${TESTRAIL_ENV_FILE:-}" ]]; then
+    env_override="$(testrail_normalize_input_path "$TESTRAIL_ENV_FILE")"
+
+    if [[ ! -f "$env_override" ]]; then
+      echo "Error: TESTRAIL_ENV_FILE points to missing file '$TESTRAIL_ENV_FILE'" >&2
+      exit 1
+    fi
+
+    testrail_load_env_file "$env_override" "TESTRAIL_ENV_FILE"
+  else
+    env_file="$(testrail_find_ancestor_file "$TESTRAIL_REPO_ROOT" ".env" || true)"
+    if [[ -n "$env_file" ]]; then
+      testrail_load_env_file "$env_file" "ancestor-search"
+    fi
   fi
 
-  : "${TESTRAIL_URL:?TESTRAIL_URL not set. Create .env file with credentials}"
-  : "${TESTRAIL_USER:?TESTRAIL_USER not set. Create .env file with credentials}"
-  : "${TESTRAIL_API_KEY:?TESTRAIL_API_KEY not set. Create .env file with credentials}"
+  : "${TESTRAIL_URL:?TESTRAIL_URL not set. Create .env file with credentials or set TESTRAIL_ENV_FILE}"
+  : "${TESTRAIL_USER:?TESTRAIL_USER not set. Create .env file with credentials or set TESTRAIL_ENV_FILE}"
+  : "${TESTRAIL_API_KEY:?TESTRAIL_API_KEY not set. Create .env file with credentials or set TESTRAIL_ENV_FILE}"
 
   TESTRAIL_URL="${TESTRAIL_URL%/}"
 
   testrail_require_command curl
   testrail_require_command jq
+  testrail_emit_env_source
 }

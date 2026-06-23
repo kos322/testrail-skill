@@ -1,190 +1,147 @@
 # Troubleshooting
 
+## Start with `doctor.sh`
+
+```bash
+./scripts/doctor.sh | jq .
+```
+
+This is the fastest way to check:
+
+- env loading
+- `curl` / `jq` availability
+- URL formatting
+- authenticated API access
+- accessible project IDs
+
 ## Bash not found on Windows
 
-**Symptom:** `bash: command not found` or exit code 1
+**Symptom:** `bash: command not found`
 
-**Solution:**
+**Fix:**
+
 ```bash
-# Check if bash is in PATH
 which bash || where.exe bash
+```
 
-# Common Git Bash locations:
-# C:\Program Files\Git\bin\bash.exe
-# C:\Program Files\Git\usr\bin\bash.exe
+Common locations:
 
-# Add to PATH or use full path
-/c/Program\ Files/Git/bin/bash.exe script.sh
+- `C:\Program Files\Git\bin\bash.exe`
+- `C:\Program Files\Git\usr\bin\bash.exe`
+
+PowerShell-only environment:
+
+```powershell
+.\powershell\doctor.ps1
 ```
 
 ## Credentials not loading
 
-**Symptom:** Variables are empty
+**Symptoms:**
 
-**Diagnose:**
-```bash
-# Verify .env exists
-ls -la .env
+- `TESTRAIL_URL not set`
+- `TESTRAIL_USER not set`
+- `TESTRAIL_API_KEY not set`
 
-# Check format (no spaces around =)
-cat .env
+**Fixes:**
 
-# Test loading through the shared harness
-./scripts/get_cases.sh 1 | jq '.cases | length'
+1. Put `.env` at the repository root, or
+2. Set `TESTRAIL_ENV_FILE=/path/to/.env`
+
+Scripts search for `.env` in the repository directory and its ancestor directories. For nonstandard env discovery they print:
+
+```text
+Using env: /path/to/.env
 ```
 
-**Fix:**
-- Ensure no spaces: `TESTRAIL_URL="..."` not `TESTRAIL_URL = "..."`
-- Use double quotes, not single quotes for values
-- No trailing spaces after closing quote
-- Keep using the shared `load_credentials` flow from `scripts/common.sh`
+If `TESTRAIL_ENV_FILE` is set, it must point to an existing file. Set `TESTRAIL_SHOW_ENV_SOURCE=1` if you want the env source echoed on every script run.
 
 ## Authentication failed
 
 **Symptom:** `"Authentication failed: invalid or missing user/password"`
 
-**Solutions:**
-1. Check API key is correct (regenerate if needed)
-2. Ensure API is enabled: Administration → Site Settings → API
-3. Verify email is correct (not username)
-4. Check for trailing spaces in credentials
+Check:
 
-**Test:**
+1. API key is valid
+2. Email is correct
+3. API is enabled in TestRail
+4. `.env` values have no trailing spaces
+
+Quick verification:
+
 ```bash
-curl -v -u "$TESTRAIL_USER:$TESTRAIL_API_KEY" \
-  "${TESTRAIL_URL}/index.php?/api/v2/get_projects"
+./scripts/get_projects.sh | jq '(.projects // .) | length'
 ```
 
 ## API is disabled
 
 **Symptom:** `"The API is disabled for your installation"`
 
-**Solution:**
-1. Login as administrator
-2. Go to Administration → Site Settings
-3. Click API tab
-4. Check "Enable API"
-5. Save settings
+Enable it in TestRail:
+
+1. Administration
+2. Site Settings
+3. API
+4. Enable API
 
 ## No host part in URL
 
 **Symptom:** `curl: (3) URL rejected: No host part in the URL`
 
-**Solution:**
-- Check `TESTRAIL_URL` includes `https://`
-- Remove trailing slash: `https://company.testrail.io` not `https://company.testrail.io/`
+Use:
 
-**Test:**
-```bash
-echo $TESTRAIL_URL
-# Should print: https://company.testrail.io
+```text
+TESTRAIL_URL="https://company.testrail.io"
 ```
 
-## curl not available
+Not:
 
-**Symptom:** `curl: command not found`
-
-**Solution (Windows):**
-```bash
-# Check curl
-which curl
-
-# Git Bash should have curl built-in
-# If not, check Git for Windows installation
+```text
+TESTRAIL_URL="company.testrail.io"
 ```
 
-**Solution (Linux/macOS):**
-```bash
-# Ubuntu/Debian
-sudo apt-get install curl
+## `curl` or `jq` missing
 
-# macOS
-brew install curl
+**Symptoms:**
+
+- `curl: command not found`
+- `jq: command not found`
+
+Git Bash usually ships with `curl`. Install `jq` via your package manager if needed.
+
+## Pagination confusion
+
+**Symptom:** case totals look wrong
+
+Do not assume:
+
+- `.size` is always the total you want
+- one page equals the whole dataset
+
+Use:
+
+```bash
+./scripts/count_cases.sh 1
+./scripts/count_cases.sh 1 10 --suite 1
 ```
 
-## jq not available
+Use `get_cases.sh` only when you want the raw page payload.
 
-**Symptom:** `jq: command not found`
+## Empty response or unexpected shape
 
-**Solution:**
+Save the raw JSON and inspect it:
+
 ```bash
-# Windows (via scoop)
-scoop install jq
-
-# Ubuntu/Debian
-sudo apt-get install jq
-
-# macOS
-brew install jq
-
-# Or parse without jq
-curl ... | grep -o '"id":[0-9]*'
+./scripts/get_cases.sh 1 > response.json
+cat response.json | jq .
 ```
 
-## Script permission denied
+If the endpoint is paginated, also inspect:
 
-**Symptom:** `Permission denied: ./scripts/get_cases.sh`
-
-**Solution:**
 ```bash
-chmod +x scripts/*.sh
-
-# Or run with bash
-bash scripts/get_cases.sh 1
-```
-
-## Empty response
-
-**Symptom:** Curl returns nothing
-
-**Diagnose:**
-```bash
-# Add verbose flag
-curl -v -u "$TESTRAIL_USER:$TESTRAIL_API_KEY" ...
-
-# Check HTTP status
-curl -w "\nHTTP: %{http_code}\n" ...
-
-# Save response to file
-curl ... -o response.json && cat response.json
+jq '{offset, limit, size, next: ._links.next}' response.json
 ```
 
 ## Rate limiting
 
-**Symptom:** HTTP 429 Too Many Requests
-
-**Solution:**
-```bash
-# Add exponential backoff
-for i in 1 2 4 8; do
-  RESPONSE=$(curl ...)
-  [[ "$RESPONSE" != *"429"* ]] && break
-  echo "Rate limited, waiting ${i}s..."
-  sleep $i
-done
-```
-
-## For AI Agents
-
-### Robust .env loading
-```bash
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "$SCRIPT_DIR/../scripts/common.sh"
-load_credentials
-```
-
-### Pre-flight checks
-```bash
-: "${TESTRAIL_URL:?TESTRAIL_URL not set}"
-: "${TESTRAIL_USER:?TESTRAIL_USER not set}"
-: "${TESTRAIL_API_KEY:?TESTRAIL_API_KEY not set}"
-```
-
-### Fallback for Windows
-If Bash unavailable, check paths:
-```bash
-/c/Program\ Files/Git/bin/bash.exe
-C:/Program\ Files/Git/usr/bin/bash.exe
-```
-
-Last resort: translate to PowerShell (see agent-guide.md)
+The shared `testrail_api()` helper already retries `429` and `5xx` responses with exponential backoff. If you still hit limits repeatedly, reduce the request rate or rerun later.

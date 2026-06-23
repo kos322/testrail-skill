@@ -1,118 +1,62 @@
 # Guide for AI Agents
 
-Instructions for AI agents using this skill on different platforms.
+Use this file when an agent needs execution guidance, not full API reference.
 
-## Preferred Approach
+## Recommended flow
 
-**Use Bash tool directly.** Examples in SKILL.md work as-is in:
-- Claude Code (Bash tool)
-- Linux/macOS terminal
-- Windows Git Bash
-- WSL
+1. Run `./scripts/doctor.sh`
+2. Run `./scripts/get_projects.sh`
+3. Use `./scripts/count_cases.sh` for totals
+4. Use `./scripts/get_cases.sh` for raw paginated responses
 
-## Windows: Finding Bash
+This avoids the most common failures: missing env files, unknown project IDs, and misread pagination.
 
-If `bash` command fails:
+## Credentials
 
-1. **Check common paths:**
-```bash
-which bash || where.exe bash
+- Preferred: put `.env` at the repository root.
+- Override: set `TESTRAIL_ENV_FILE` to an existing env file.
+- Scripts print `Using env: ...` to **stderr** when using `TESTRAIL_ENV_FILE`, when `.env` was found above the repo root, or when `TESTRAIL_SHOW_ENV_SOURCE=1`.
+- Do **not** `source .env` manually in the agent conversation.
+
+## Windows
+
+### Preferred
+
+Use Git Bash or WSL directly.
+
+### PowerShell-only environment
+
+Use the wrappers in `powershell/`:
+
+```powershell
+.\powershell\doctor.ps1
+.\powershell\get-projects.ps1
+.\powershell\count-cases.ps1 1
 ```
 
-2. **Standard Git Bash locations:**
-- `C:\Program Files\Git\bin\bash.exe`
-- `C:\Program Files\Git\usr\bin\bash.exe`
+Wrappers only forward to the bash scripts. They do not parse `.env` or reconstruct auth in PowerShell.
 
-3. **Try explicit path:**
-```bash
-"/c/Program Files/Git/bin/bash.exe" script.sh
-```
+## Pagination
 
-## Loading .env Reliably
+`get_cases`, `get_runs`, `get_results*`, and similar endpoints can be paginated.
 
-**Robust pattern:**
+- Do **not** treat `.size` as the final total unless `_links.next` is empty.
+- Use `./scripts/count_cases.sh` when you need a total.
+- Keep `./scripts/get_cases.sh` for page inspection and debugging.
+
+## Advanced / custom requests
+
+If no wrapper exists, use the shared harness instead of hand-loading credentials:
+
 ```bash
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/../scripts/common.sh"
 load_credentials
+testrail_api GET "get_projects" -H "Content-Type: application/json"
 ```
 
-## Pre-execution Checks
+## When something fails
 
-Before running TestRail commands:
-
-```bash
-testrail_api GET "get_projects" -H "Content-Type: application/json" \
-  | jq '.projects | length'
-```
-
-## Handling Script Execution
-
-**Make executable:**
-```bash
-chmod +x scripts/*.sh
-```
-
-**Or invoke with bash:**
-```bash
-bash scripts/get_cases.sh 1
-```
-
-## Error Handling
-
-**Check exit codes:**
-```bash
-if ! ./scripts/create_run.sh 1 5 "Test Run"; then
-  echo "Failed to create run" >&2
-  exit 1
-fi
-```
-
-**Capture and parse errors:**
-```bash
-if ! RESPONSE="$(testrail_api GET "get_projects" -H "Content-Type: application/json")"; then
-  echo "TestRail request failed" >&2
-  exit 1
-fi
-```
-
-## PowerShell Fallback (Last Resort)
-
-Do **not** parse or `source` `.env` in PowerShell. If the default `bash` command resolves to WSL or fails,
-call Git Bash explicitly so the repository scripts can continue loading credentials internally:
-
-```powershell
-& "C:\Program Files\Git\usr\bin\bash.exe" -lc 'cd /c/1/testrail-skill && /usr/bin/bash scripts/get_cases.sh 1'
-```
-
-If Git Bash is unavailable, install Git for Windows instead of rewriting the authenticated flows in PowerShell.
-
-## Debugging Commands
-
-**Verbose curl:**
-```bash
-curl -v -u "$TESTRAIL_USER:$TESTRAIL_API_KEY" \
-  "${TESTRAIL_URL}/index.php?/api/v2/get_projects"
-```
-
-**Save response:**
-```bash
-curl ... -o debug.json
-cat debug.json | jq .
-```
-
-**Check HTTP status:**
-```bash
-STATUS=$(curl -w "%{http_code}" -o response.json ...)
-echo "HTTP Status: $STATUS"
-```
-
-## Token Optimization
-
-When generating commands for users:
-1. Reference script paths: `./scripts/get_cases.sh` not full curl commands
-2. Point to docs: "See docs/api-reference.md" not repeating API details
-3. Use examples: "Like examples/create_case.sh" not writing from scratch
-4. Keep responses concise: script name + brief explanation
-
-This keeps token usage low while maintaining full functionality.
+- Setup/auth/env issues: `docs/troubleshooting.md`
+- Payload shapes and endpoint notes: `docs/api-reference.md`
+- Verification history / snapshot docs: `docs/maintenance/endpoint-status.md`

@@ -23,6 +23,12 @@ CASE_ATTACHMENT_ID=""
 RESULT_ATTACHMENT_ID=""
 PLAN_ATTACHMENT_ID=""
 PLAN_ENTRY_ATTACHMENT_ID=""
+CASE_DELETED=false
+RUN_DELETED=false
+PLAN_DELETED=false
+DELETED_CASE_ID="null"
+DELETED_RUN_ID="null"
+DELETED_PLAN_ID="null"
 
 attachment_items_filter='if type == "object" and has("attachments") then .attachments else . end'
 
@@ -46,7 +52,7 @@ cleanup() {
   fi
 
   if [[ -n "${CASE_ID:-}" ]]; then
-    testrail_api POST "delete_case/${CASE_ID}" -H "Content-Type: application/json" >/dev/null 2>&1 || true
+    /usr/bin/bash "${REPO_ROOT}/scripts/delete_case.sh" "$CASE_ID" >/dev/null 2>&1 || true
   fi
 
   testrail_cleanup
@@ -160,18 +166,52 @@ PLAN_ATTACHMENT_ID=""
 /usr/bin/bash "${REPO_ROOT}/scripts/delete_attachment.sh" "$PLAN_ENTRY_ATTACHMENT_ID" >/dev/null
 PLAN_ENTRY_ATTACHMENT_ID=""
 
+/usr/bin/bash "${REPO_ROOT}/scripts/delete_case.sh" "$CASE_ID" >/dev/null
+deleted_case_id="$CASE_ID"
+CASE_ID=""
+CASE_DELETED=true
+DELETED_CASE_ID="$deleted_case_id"
+cases_after_delete="$(
+  /usr/bin/bash "${REPO_ROOT}/scripts/get_cases.sh" "$PROJECT_ID" "$SECTION_ID" --suite "$SUITE_ID"
+)"
+printf '%s\n' "$cases_after_delete" | jq -e --argjson id "$deleted_case_id" \
+  '(.cases // []) | any(.id == $id) | not' >/dev/null
+
+testrail_api POST "delete_run/${RUN_ID}" -H "Content-Type: application/json" >/dev/null
+deleted_run_id="$RUN_ID"
+RUN_ID=""
+RUN_DELETED=true
+DELETED_RUN_ID="$deleted_run_id"
+runs_after_delete="$(testrail_api GET "get_runs/${PROJECT_ID}" -H "Content-Type: application/json")"
+printf '%s\n' "$runs_after_delete" | jq -e --argjson id "$deleted_run_id" \
+  '(.runs // []) | any(.id == $id) | not' >/dev/null
+
+testrail_api POST "delete_plan/${PLAN_ID}" -H "Content-Type: application/json" >/dev/null
+deleted_plan_id="$PLAN_ID"
+PLAN_ID=""
+PLAN_DELETED=true
+DELETED_PLAN_ID="$deleted_plan_id"
+plans_after_delete="$(testrail_api GET "get_plans/${PROJECT_ID}" -H "Content-Type: application/json")"
+printf '%s\n' "$plans_after_delete" | jq -e --argjson id "$deleted_plan_id" \
+  '(.plans // []) | any(.id == $id) | not' >/dev/null
+
 jq -n \
-  --argjson case_id "$CASE_ID" \
+  --argjson case_id "$DELETED_CASE_ID" \
   --argjson test_id "$TEST_ID" \
   --argjson result_id "$RESULT_ID" \
-  --argjson plan_id "$PLAN_ID" \
+  --argjson plan_id "$DELETED_PLAN_ID" \
   --arg entry_id "$ENTRY_ID" \
+  --argjson case_deleted "$CASE_DELETED" \
+  --argjson run_deleted "$RUN_DELETED" \
+  --argjson plan_deleted "$PLAN_DELETED" \
+  --argjson run_id "$DELETED_RUN_ID" \
   '{
     fixtures: {
       case_id: $case_id,
       test_id: $test_id,
       result_id: $result_id,
       plan_id: $plan_id,
+      run_id: $run_id,
       entry_id: $entry_id
     },
     coverage: {
@@ -182,5 +222,10 @@ jq -n \
       get_attachments_for_case: true,
       get_attachments_for_test: true,
       delete_attachment: true
+    },
+    lifecycle: {
+      case_deleted: $case_deleted,
+      run_deleted: $run_deleted,
+      plan_deleted: $plan_deleted
     }
   }'

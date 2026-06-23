@@ -24,16 +24,26 @@ cp .env.example .env
 # Edit .env with your TestRail URL, email, and API key
 ```
 
-**2. Use scripts directly** (no `source .env` needed):
+Or point at an existing env file:
 ```bash
-# Get test cases
-./scripts/get_cases.sh 1 10
+export TESTRAIL_ENV_FILE=/path/to/.env
+```
 
-# Create test run
-./scripts/create_run.sh 1 5 "Sprint 42 Regression"
+**2. Run the built-in health check:**
+```bash
+./scripts/doctor.sh | jq .
+```
 
-# Add test result
-./scripts/add_result.sh 1042 1 "Passed in CI"
+**3. Use scripts directly** (no `source .env` needed):
+```bash
+# List accessible projects
+./scripts/get_projects.sh | jq '(.projects // .) | map({id, name})'
+
+# Count total cases safely
+./scripts/count_cases.sh 1
+
+# Read one page of cases
+./scripts/get_cases.sh 1 10 --suite 1
 ```
 
 ## Security
@@ -47,8 +57,11 @@ cp .env.example .env
 
 ```
 testrail-skill/
-├── SKILL.md              # Main skill file (~150 lines)
+├── SKILL.md              # Lean agent entrypoint
 ├── scripts/              # Ready-to-use bash scripts
+│   ├── doctor.sh         # Env/auth/access health check
+│   ├── get_projects.sh   # List accessible projects
+│   ├── count_cases.sh    # Count cases with pagination
 │   ├── get_*.sh          # Read wrappers (projects, cases, runs, results, metadata)
 │   ├── create_run.sh     # Create test run
 │   ├── update_run.sh     # Update test run
@@ -62,16 +75,21 @@ testrail-skill/
 │   ├── workflow_ci.sh                 # Full CI integration
 │   ├── workflow_plans_milestones.sh   # Plan + milestone lifecycle
 │   └── workflow_attachments.sh        # Attachment lifecycle
+├── powershell/           # Thin wrappers for PowerShell-only environments
+│   ├── doctor.ps1
+│   ├── get-projects.ps1
+│   └── count-cases.ps1
 └── docs/                 # Detailed documentation
-    ├── api-reference.md  # All 50 tracked API endpoints
-    ├── troubleshooting.md # Common issues & solutions
-    └── agent-guide.md    # For AI agents
+    ├── api-reference.md      # API notes and payload shapes
+    ├── troubleshooting.md    # Common issues & solutions
+    ├── agent-guide.md        # For AI agents
+    └── maintenance/          # Snapshot/verification docs
 ```
 
 ## Prerequisites
 
 **Windows Users:** Use **Git Bash** ([Git for Windows](https://git-scm.com/download/win)) or **WSL**.  
-Claude Code's Bash tool works seamlessly with Git Bash.
+If you only have PowerShell, use the thin wrappers in `powershell/`.
 
 **Get API Key:**
 1. TestRail → My Settings → API Keys → Add Key
@@ -79,18 +97,35 @@ Claude Code's Bash tool works seamlessly with Git Bash.
 
 ## Documentation
 
-- **[SKILL.md](./SKILL.md)** — Core skill (150 lines, token-efficient)
+- **[SKILL.md](./SKILL.md)** — Lean runtime skill entrypoint
 - **[scripts/README.md](./scripts/README.md)** — Script usage guide
 - **[docs/api-reference.md](./docs/api-reference.md)** — Complete API reference
 - **[docs/troubleshooting.md](./docs/troubleshooting.md)** — Common issues
 - **[docs/agent-guide.md](./docs/agent-guide.md)** — For AI agents
+- **[docs/maintenance/endpoint-status.md](./docs/maintenance/endpoint-status.md)** — Maintenance snapshot
+
+## Fast Answers
+
+```bash
+# How many cases are there?
+./scripts/count_cases.sh 1
+
+# What projects can I access?
+./scripts/get_projects.sh | jq '(.projects // .) | map({id, name})'
+
+# What is the case title?
+./scripts/get_case.sh 1 | jq -r .title
+
+# Does my setup actually work?
+./scripts/doctor.sh | jq '{ok, project_count: .api.project_count}'
+```
 
 ## Example Workflows
 
 ### Get Cases and Parse
 
 ```bash
-./scripts/get_cases.sh 1 10 | jq '.cases[] | {id, title, priority_id}'
+./scripts/get_cases.sh 1 10 --suite 1 | jq '.cases[] | {id, title, priority_id}'
 ```
 
 ### CI Integration
@@ -133,12 +168,13 @@ Many teams cannot use community MCP servers due to security policies. This skill
 
 The skill is designed to minimize token usage:
 
-- **SKILL.md:** ~150 lines (was 635) — 76% reduction
+- **SKILL.md:** kept as the lean runtime entrypoint
 - **Scripts:** Loaded by reference, not inline
 - **Docs:** Loaded on-demand when needed
+- **Maintenance snapshots:** kept out of the main skill path
 - **Examples:** Separate directory, explicit reference
 
-AI agents load SKILL.md (~3K tokens) and reference scripts/docs as needed.
+AI agents should load `SKILL.md` first, then pull only the specific script/doc they need.
 
 ## Compatible Agents
 
