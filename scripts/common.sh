@@ -3,13 +3,18 @@
 
 # Load credentials from .env (not exposed to LLM context)
 load_credentials() {
-  if [ -f .env ]; then
+  # Determine script's parent directory (repository root)
+  local REPO_ROOT
+  REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
+  # Try loading .env from repository root first, then parent directory
+  if [ -f "$REPO_ROOT/.env" ]; then
     set -a
-    source .env
+    source "$REPO_ROOT/.env"
     set +a
-  elif [ -f ../.env ]; then
+  elif [ -f "$REPO_ROOT/../.env" ]; then
     set -a
-    source ../.env
+    source "$REPO_ROOT/../.env"
     set +a
   fi
 
