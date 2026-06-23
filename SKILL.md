@@ -4,6 +4,15 @@ description: TestRail REST API for test management. Use when user mentions "Test
   "test cases", "test runs", "test results", or test management operations.
 ---
 
+# TestRail API Integration
+
+**IMPORTANT for Windows:** This skill uses Bash syntax. If running on Windows:
+1. **Prefer Bash tool** over PowerShell for these commands
+2. All examples work in Git Bash (included with Git for Windows)
+3. Alternative: Use WSL (Windows Subsystem for Linux)
+
+Do NOT translate to PowerShell — the Bash tool provides native Bash environment on Windows.
+
 ## Prerequisites
 
 Set these environment variables:

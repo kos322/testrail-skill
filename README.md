@@ -13,7 +13,7 @@ This skill provides ready-to-use curl examples for TestRail API operations. No M
 - ✅ **Production-ready** — follows TestRail API best practices
 - ✅ **Bulk operations** — efficient batch result uploads
 - ✅ **Complete workflows** — import cases → generate tests → push results
-- ✅ **Cross-platform** — Bash/Linux and PowerShell/Windows versions included
+- ✅ **Cross-platform** — works on Linux, macOS, and Windows (via Git Bash/WSL)
 
 ## Installation
 
@@ -28,6 +28,8 @@ npx skills add KanstantsinSudzilous/testrail-skill -g -y
 ```
 
 ## Prerequisites
+
+**Windows Users:** This skill uses Bash syntax. Use **Git Bash** (included with [Git for Windows](https://git-scm.com/download/win)) or **WSL**. Claude Code's Bash tool works seamlessly with Git Bash on Windows.
 
 Set these environment variables:
 
@@ -111,10 +113,9 @@ Works with any agent supporting the open skills protocol:
 
 ## Documentation
 
-- **Bash/Linux version**: [SKILL.md](./SKILL.md)
-- **PowerShell/Windows version**: [SKILL-POWERSHELL.md](./SKILL-POWERSHELL.md)
+Full API reference and examples: [SKILL.md](./SKILL.md)
 
-Official TestRail API docs: https://support.testrail.com/hc/en-us/articles/7077196481428
+Official TestRail API docs: https://support.testrail.com/hc/en-us/categories/7076541806228-API-Manual
 
 ## Security
 
