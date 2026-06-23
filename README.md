@@ -18,13 +18,13 @@ This skill provides ready-to-use curl examples for TestRail API operations. No M
 ## Installation
 
 ```bash
-npx skills add KanstantsinSudzilous/testrail-skill
+npx skills add kos322/testrail-skill
 ```
 
 Or for global installation:
 
 ```bash
-npx skills add KanstantsinSudzilous/testrail-skill -g -y
+npx skills add kos322/testrail-skill -g -y
 ```
 
 ## Prerequisites
