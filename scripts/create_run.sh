@@ -3,14 +3,15 @@
 
 set -euo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/common.sh"
+
+load_credentials
+
 PROJECT_ID="${1:?Usage: $0 PROJECT_ID SUITE_ID NAME [CASE_IDS]}"
 SUITE_ID="${2:?}"
 NAME="${3:?}"
 CASE_IDS="${4:-}"  # Optional: comma-separated like "1,2,3"
-
-: "${TESTRAIL_URL:?TESTRAIL_URL not set}"
-: "${TESTRAIL_USER:?TESTRAIL_USER not set}"
-: "${TESTRAIL_API_KEY:?TESTRAIL_API_KEY not set}"
 
 PAYLOAD=$(mktemp)
 trap "rm -f $PAYLOAD" EXIT

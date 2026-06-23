@@ -4,15 +4,19 @@ Ready-to-use bash scripts for common TestRail operations.
 
 ## Prerequisites
 
-Load credentials first:
+**1. Create `.env` file:**
 ```bash
-source .env
+cp ../.env.example .env
+# Edit .env with your credentials
 ```
 
-Make scripts executable:
+**2. Make scripts executable:**
 ```bash
 chmod +x *.sh
 ```
+
+**Note:** Scripts load `.env` automatically. No need to `source .env` manually.
+This keeps credentials isolated from LLM context for security.
 
 ## Available Scripts
 

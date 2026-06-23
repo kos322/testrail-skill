@@ -12,15 +12,20 @@ Direct TestRail REST API integration without external dependencies. Uses curl + 
 
 **Windows:** Use Bash tool (Git Bash/WSL). Don't translate to PowerShell.
 
-**Setup credentials** (one of):
-1. **Recommended:** Create `.env` in project, then `source .env`
-2. Global: `export` in `~/.bashrc`
-3. Inline: `TESTRAIL_URL="..." curl ...`
-
-See `.env.example` for template.
+**Setup credentials:**
+1. Copy `.env.example` to `.env`
+2. Fill in your TestRail URL, email, and API key
+3. Scripts load `.env` automatically (credentials never exposed to LLM)
 
 **Enable API:** TestRail → Administration → Site Settings → API → Enable API  
 **Get API Key:** My Settings → API Keys → Add Key
+
+## Security Note
+
+**Credentials are isolated:** Scripts load `.env` internally. LLM never sees credentials in context. This prevents:
+- Credential leaks in logs
+- Accidental exposure in responses
+- Credentials in API request history
 
 ## Core Operations
 
@@ -66,19 +71,19 @@ curl -s -u "$TESTRAIL_USER:$TESTRAIL_API_KEY" \
 
 ## Ready-to-Use Scripts
 
-Located in `scripts/` directory:
+Located in `scripts/` directory. **No need to `source .env`** — scripts load credentials automatically.
 
 - `scripts/get_cases.sh PROJECT_ID [SECTION_ID]` — Get test cases
-- `scripts/create_run.sh PROJECT_ID SUITE_ID NAME` — Create test run
-- `scripts/add_result.sh TEST_ID STATUS COMMENT` — Add single result
+- `scripts/create_run.sh PROJECT_ID SUITE_ID NAME [CASE_IDS]` — Create test run
+- `scripts/add_result.sh TEST_ID STATUS COMMENT [ELAPSED]` — Add single result
 - `scripts/bulk_results.sh RUN_ID RESULTS_FILE` — Bulk upload results
-- `scripts/import_cases.sh PROJECT_ID SECTION_ID` — Export cases to JSON
+- `scripts/import_cases.sh PROJECT_ID SECTION_ID [OUTPUT]` — Export cases to JSON
 - `scripts/close_run.sh RUN_ID` — Close completed run
 
 **Usage:**
 ```bash
-source .env  # Load credentials
 ./scripts/get_cases.sh 1 10  # Get cases from project 1, section 10
+# No source .env needed - credentials loaded inside script
 ```
 
 ## Status IDs

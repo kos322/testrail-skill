@@ -3,9 +3,10 @@
 
 set -euo pipefail
 
-: "${TESTRAIL_URL:?}"
-: "${TESTRAIL_USER:?}"
-: "${TESTRAIL_API_KEY:?}"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/../scripts/common.sh"
+
+load_credentials
 
 PROJECT_ID="${1:?Usage: $0 PROJECT_ID SUITE_ID}"
 SUITE_ID="${2:?}"

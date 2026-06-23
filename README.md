@@ -18,18 +18,13 @@ npx skills add kos322/testrail-skill -g -y
 
 ## Quick Start
 
-**1. Configure credentials** (copy template, fill in values):
+**1. Configure credentials:**
 ```bash
 cp .env.example .env
 # Edit .env with your TestRail URL, email, and API key
 ```
 
-**2. Load credentials:**
-```bash
-source .env
-```
-
-**3. Use scripts:**
+**2. Use scripts directly** (no `source .env` needed):
 ```bash
 # Get test cases
 ./scripts/get_cases.sh 1 10
@@ -40,6 +35,13 @@ source .env
 # Add test result
 ./scripts/add_result.sh 1042 1 "Passed in CI"
 ```
+
+## Security
+
+- ✅ **Credentials isolated** — Scripts load `.env` internally, never exposed to LLM
+- ✅ **No credential leaks** — API keys don't appear in agent context or logs
+- ✅ **Environment variables** — Standard `.env` file, easy to manage
+- ✅ **Git-safe** — `.env` in `.gitignore` by default
 
 ## Structure
 
@@ -84,7 +86,6 @@ Claude Code's Bash tool works seamlessly with Git Bash.
 ### Get Cases and Parse
 
 ```bash
-source .env
 ./scripts/get_cases.sh 1 10 | jq '.cases[] | {id, title, priority_id}'
 ```
 
@@ -103,6 +104,8 @@ pytest --json-report
 # Close run
 ./scripts/close_run.sh "$RUN_ID"
 ```
+
+**Security:** Scripts load credentials internally — they never appear in LLM context.
 
 See [examples/workflow_ci.sh](./examples/workflow_ci.sh) for complete example.
 
