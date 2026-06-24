@@ -6,17 +6,15 @@ description: TestRail REST API for test management. Use when user mentions "Test
 
 # TestRail API Skill
 
-Lean marketplace entrypoint for direct TestRail REST API usage.
+Direct TestRail REST API integration through repository-local bash wrappers.
 
-## Important packaging note
+## Installation
 
-`npx skills add kos322/testrail-skill` installs **this file only**.
-
-It does **not** install repository helpers like `scripts/`, `powershell/`, `examples/`, or `docs/`.
-If you want the full wrapper toolkit, clone the repository separately:
+Clone the repository first:
 
 ```bash
 git clone https://github.com/kos322/testrail-skill.git
+cd testrail-skill
 ```
 
 ## Setup
@@ -35,80 +33,98 @@ ${TESTRAIL_URL}/index.php?/api/v2
 
 ## Decision tree
 
-- **Known project ID + simple read-only question:** call the needed endpoint directly.
-- **Unknown project ID:** call `get_projects`.
-- **Run/results workflow:** create run -> get tests -> add results -> close run.
-- **Need wrappers, PowerShell helpers, or disposable verification workflows:** clone the repository and use `README.md`.
+- **Known `PROJECT_ID` + simple read-only question:** call the direct wrapper immediately.
+- **Unknown `PROJECT_ID`:** call `./scripts/get_projects.sh`.
+- **Env/auth/setup problem or first-time installation:** call `./scripts/doctor.sh`.
 
 ## Common queries
 
 ```bash
-# List accessible projects
-curl -s -u "$TESTRAIL_USER:$TESTRAIL_API_KEY" \
-  "${TESTRAIL_URL}/index.php?/api/v2/get_projects" | jq .
+# Known project ID: total case count
+./scripts/count_cases.sh PROJECT_ID [SECTION_ID] [--suite SUITE_ID]
 
-# Get suites in a project
-curl -s -u "$TESTRAIL_USER:$TESTRAIL_API_KEY" \
-  "${TESTRAIL_URL}/index.php?/api/v2/get_suites/PROJECT_ID" | jq .
+# Known project ID: full case list with auto-pagination
+./scripts/list_cases.sh PROJECT_ID [SECTION_ID] [--suite SUITE_ID]
 
-# Get sections in a suite
-curl -s -u "$TESTRAIL_USER:$TESTRAIL_API_KEY" \
-  "${TESTRAIL_URL}/index.php?/api/v2/get_sections/PROJECT_ID&suite_id=SUITE_ID" | jq .
+# Known project ID: raw paginated case page
+./scripts/get_cases.sh PROJECT_ID [SECTION_ID] [--suite SUITE_ID]
 
-# Get cases (optionally add &section_id=SECTION_ID or &suite_id=SUITE_ID)
-curl -s -u "$TESTRAIL_USER:$TESTRAIL_API_KEY" \
-  "${TESTRAIL_URL}/index.php?/api/v2/get_cases/PROJECT_ID" | jq .
+# Any time: read one case
+./scripts/get_case.sh CASE_ID | jq -r .title
 
-# Get one case
-curl -s -u "$TESTRAIL_USER:$TESTRAIL_API_KEY" \
-  "${TESTRAIL_URL}/index.php?/api/v2/get_case/CASE_ID" | jq .
+# Single field without manual JSON parsing
+./scripts/get_case_field.sh CASE_ID FIELD
 
-# Get statuses
-curl -s -u "$TESTRAIL_USER:$TESTRAIL_API_KEY" \
-  "${TESTRAIL_URL}/index.php?/api/v2/get_statuses" | jq .
+# Precondition shortcut
+./scripts/get_case_precondition.sh CASE_ID
+
+# Unknown project ID: discover accessible projects
+./scripts/get_projects.sh | jq '(.projects // .) | map({id, name})'
+
+# Setup/auth problem: validate env and access
+./scripts/doctor.sh
 ```
 
-## Run/results workflow
+## Preferred wrappers
 
-```bash
-# 1. Create a run
-cat > run.json <<'EOF'
-{"suite_id":1,"name":"Automation Run","include_all":false,"case_ids":[1,2,3]}
-EOF
+- `scripts/count_cases.sh` — reliable total-case count
+- `scripts/list_cases.sh` — full case list with auto-pagination
+- `scripts/get_cases.sh` — raw paginated case response
+- `scripts/get_case.sh` — single case lookup
+- `scripts/get_case_field.sh` — single field lookup
+- `scripts/get_case_precondition.sh` — precondition shortcut
+- `scripts/get_projects.sh` — discover accessible projects
+- `scripts/doctor.sh` — setup/auth smoke check
+- `scripts/create_run.sh`, `scripts/add_result*.sh`, `scripts/close_run.sh` — run/result flows
+- `scripts/get_reference_data.sh` — statuses, fields, templates, users
 
-RUN_ID="$(
-  curl -s -X POST -u "$TESTRAIL_USER:$TESTRAIL_API_KEY" \
-    "${TESTRAIL_URL}/index.php?/api/v2/add_run/PROJECT_ID" \
-    -H "Content-Type: application/json" \
-    -d @run.json | jq -r '.id'
-)"
+## Output contracts
 
-# 2. Inspect tests created in the run
-curl -s -u "$TESTRAIL_USER:$TESTRAIL_API_KEY" \
-  "${TESTRAIL_URL}/index.php?/api/v2/get_tests/${RUN_ID}" | jq .
+| Intent | Command | Output |
+| --- | --- | --- |
+| total case count | `count-cases` | plain integer |
+| case list | `list-cases` | plain text by default: `C{id}: {title}` |
+| structured case list | `list-cases --format json` | JSON object with `count` and `cases` |
+| one case | `get-case` | JSON case object |
+| one case field | `get-case-field` | plain scalar/string or compact JSON for arrays/objects |
+| case precondition | `get-case-precondition` | plain text / raw field value |
 
-# 3. Add bulk results
-cat > results.json <<'EOF'
-{"results":[{"test_id":123,"status_id":1,"comment":"Passed"}]}
-EOF
+## Pagination
 
-curl -s -X POST -u "$TESTRAIL_USER:$TESTRAIL_API_KEY" \
-  "${TESTRAIL_URL}/index.php?/api/v2/add_results/${RUN_ID}" \
-  -H "Content-Type: application/json" \
-  -d @results.json | jq .
+- `get_cases`, `get_runs`, `get_results*`, and similar endpoints may be paginated.
+- Do **not** assume `.size` is a safe total unless `_links.next` is empty.
+- Use `./scripts/count_cases.sh` when the question is “how many cases are there?”
 
-# 4. Close the run
-curl -s -X POST -u "$TESTRAIL_USER:$TESTRAIL_API_KEY" \
-  "${TESTRAIL_URL}/index.php?/api/v2/close_run/${RUN_ID}" | jq .
+## Windows
+
+- Preferred: Git Bash / WSL.
+- PowerShell-only environment: use thin wrappers in `powershell/`.
+- PowerShell wrappers only launch bash scripts; they do **not** read `.env` themselves.
+
+```powershell
+.\powershell\count-cases.ps1 1
+.\powershell\list-cases.ps1 1
+.\powershell\list-cases.ps1 1 --format json
+.\powershell\get-case.ps1 93
+.\powershell\get-case-field.ps1 2 custom_preconds
+.\powershell\get-case-precondition.ps1 2
+.\powershell\get-cases.ps1 1 10 --suite 1
+.\powershell\get-sections.ps1 1 1
+.\powershell\get-runs.ps1 1
 ```
 
-## Notes
+## On-demand docs
 
-- Use Basic Auth with email + API key.
-- Many list endpoints are paginated.
-- `add_run` returns `.id`, not `.run.id`.
-- `test_id` and `case_id` are different identifiers.
-- For the full repository-based toolkit, wrapper scripts, PowerShell launchers, and maintenance docs, see:  
-  https://github.com/kos322/testrail-skill
+- `scripts/README.md` — script-by-script usage
+- `docs/api-reference.md` — endpoint notes and payload shapes
+- `docs/troubleshooting.md` — setup and auth failures
+- `docs/agent-guide.md` — agent-specific execution guidance
+- `docs/maintenance/endpoint-status.md` — maintenance snapshot, not runtime guidance
+
+## Examples
+
+- `examples/workflow_ci.sh`
+- `examples/workflow_plans_milestones.sh`
+- `examples/workflow_attachments.sh`
 
 Official API docs: https://support.testrail.com/hc/en-us/categories/7076541806228-API-Manual
