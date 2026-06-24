@@ -13,15 +13,16 @@ AI agent skill for TestRail REST API — zero dependencies, security-friendly al
 ## Installation
 
 ```bash
+mkdir .agents/skills
+cd .agents/skills
 git clone https://github.com/kos322/testrail-skill.git
-cd testrail-skill
 ```
 
 ## Quick Start
 
 **1. Configure credentials:**
 ```bash
-cp .env.example .env
+cp .agents/skills/testrail-skill/.env.example .env
 # Edit .env with your TestRail URL, email, and API key
 ```
 
