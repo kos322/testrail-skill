@@ -16,7 +16,47 @@ AI agent skill for TestRail REST API — zero dependencies, security-friendly al
 npx skills add kos322/testrail-skill -g -y
 ```
 
+## Installation modes
+
+### 1. Marketplace install (`npx skills add`)
+
+This installs the skill entrypoint only: **`SKILL.md`**.
+
+Use this mode when you want:
+- a lightweight, low-token skill prompt
+- direct `curl` / REST guidance
+- no local helper files
+
+It does **not** install:
+- `scripts/`
+- `powershell/`
+- `examples/`
+- `docs/`
+
+### 2. Full repository clone
+
+Use this mode when you want the wrapper toolkit:
+
+```bash
+git clone https://github.com/kos322/testrail-skill.git
+cd testrail-skill
+```
+
+This gives you all bash wrappers, PowerShell launchers, example workflows, and maintenance docs.
+
 ## Quick Start
+
+### Marketplace / direct API mode
+
+Set these environment variables and use the commands embedded in `SKILL.md`:
+
+```bash
+export TESTRAIL_URL="https://your-instance.testrail.io"
+export TESTRAIL_USER="you@example.com"
+export TESTRAIL_API_KEY="your-api-key"
+```
+
+### Full repository mode
 
 **1. Configure credentials:**
 ```bash
@@ -56,7 +96,7 @@ export TESTRAIL_ENV_FILE=/path/to/.env
 - ✅ **Environment variables** — Standard `.env` file, easy to manage
 - ✅ **Git-safe** — `.env` in `.gitignore` by default
 
-## Structure
+## Repository Structure
 
 ```
 testrail-skill/
@@ -106,9 +146,9 @@ If you only have PowerShell, use the thin wrappers in `powershell/`.
 1. TestRail → My Settings → API Keys → Add Key
 2. Enable API: Administration → Site Settings → API → Enable API
 
-## Documentation
+## Repository Documentation
 
-- **[SKILL.md](./SKILL.md)** — Lean runtime skill entrypoint
+- **[SKILL.md](./SKILL.md)** — Marketplace-safe lean skill entrypoint
 - **[scripts/README.md](./scripts/README.md)** — Script usage guide
 - **[docs/api-reference.md](./docs/api-reference.md)** — Complete API reference
 - **[docs/troubleshooting.md](./docs/troubleshooting.md)** — Common issues
